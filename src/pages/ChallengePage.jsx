@@ -15,12 +15,14 @@ import {
 // ============================================================
 // FETCH MATCHES FROM BACKEND API (bukan Supabase)
 // ============================================================
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 const fetchMatchesFromBackend = async () => {
     try {
         console.log('🔄 Fetching matches from backend API...');
 
         // Fetch dari backend livescore
-        const response = await fetch('http://localhost:3001/api/matches');
+        const response = await fetch(`${API_BASE_URL}/api/matches`);
 
         if (!response.ok) {
             throw new Error('Failed to fetch matches');

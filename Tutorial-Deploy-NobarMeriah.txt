@@ -1,0 +1,308 @@
+================================================================================
+           TUTORIAL DEPLOY NOBARMERIAH - DARI NOL SAMPE ONLINE
+================================================================================
+
+Dibuat: 24 Desember 2025
+Author: Claude & Kayzoo
+
+================================================================================
+                              STRUKTUR PROJECT
+================================================================================
+
+nobarmeriah/
+├── nobarmeriah-frontend/     (React + Vite)
+│   ├── public/
+│   │   └── images/
+│   │       ├── NobarMeriahLogoIcon.png
+│   │       └── NobarMeriahLogoText.png
+│   ├── src/
+│   ├── .env                  (JANGAN PUSH KE GITHUB!)
+│   ├── .gitignore
+│   ├── package.json
+│   └── ...
+│
+└── nobarmeriah-backend/      (Node.js + Express)
+    ├── src/
+    │   ├── index.js
+    │   ├── routes/
+    │   ├── services/
+    │   └── jobs/
+    ├── .env                  (JANGAN PUSH KE GITHUB!)
+    ├── .gitignore
+    ├── package.json
+    └── ...
+
+================================================================================
+                              HOSTING SERVICES
+================================================================================
+
+1. FRONTEND : Vercel (vercel.com)
+   - Gratis
+   - Auto deploy dari GitHub
+   - Custom domain support
+   - SSL gratis
+
+2. BACKEND  : Railway (railway.app)
+   - Gratis tier tersedia
+   - Auto deploy dari GitHub
+   - Environment variables support
+
+3. DATABASE : Supabase (supabase.com)
+   - PostgreSQL
+   - Auth system
+   - Real-time subscriptions
+
+================================================================================
+                         STEP 1: SETUP GITHUB
+================================================================================
+
+A. INSTALL GIT (kalau belum)
+   - Download: https://git-scm.com/downloads
+   - Install dengan default settings
+
+B. CONFIG GIT (pertama kali)
+   ```
+   git config --global user.email "emailmu@gmail.com"
+   git config --global user.name "username-github-mu"
+   ```
+
+C. BUAT REPOSITORY DI GITHUB
+   1. Buka github.com → Login
+   2. Klik "New" / "New Repository"
+   3. Buat 2 repo:
+      - nobarmeriah-frontend
+      - nobarmeriah-backend
+   4. JANGAN centang "Add README" (biarkan kosong)
+
+D. SETUP .gitignore (PENTING!)
+   
+   File: nobarmeriah-frontend/.gitignore
+   ```
+   node_modules
+   dist
+   .env
+   .env.local
+   .env.production
+   ```
+   
+   File: nobarmeriah-backend/.gitignore
+   ```
+   node_modules
+   .env
+   ```
+
+E. PUSH FRONTEND KE GITHUB
+   ```
+   cd nobarmeriah-frontend
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/USERNAME/nobarmeriah-frontend.git
+   git push -u origin main
+   ```
+
+F. PUSH BACKEND KE GITHUB
+   ```
+   cd nobarmeriah-backend
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/USERNAME/nobarmeriah-backend.git
+   git push -u origin main
+   ```
+
+================================================================================
+                    STEP 2: DEPLOY BACKEND KE RAILWAY
+================================================================================
+
+A. LOGIN RAILWAY
+   1. Buka https://railway.app
+   2. Klik "Login" → Login dengan GitHub
+
+B. CREATE PROJECT
+   1. Klik "New Project"
+   2. Pilih "Deploy from GitHub repo"
+   3. Pilih repo "nobarmeriah-backend"
+   4. Tunggu deploy...
+
+C. ADD ENVIRONMENT VARIABLES
+   1. Klik project → Tab "Variables"
+   2. Tambah variables:
+   
+   | Variable           | Value                                    |
+   |--------------------|------------------------------------------|
+   | API_FOOTBALL_KEY   | 1fc6485365cd4c504dc63f172a37838b         |
+   | SUPABASE_URL       | https://xxxxx.supabase.co                |
+   | SUPABASE_ANON_KEY  | eyJhbGciOiJIUzI1NiIs...                  |
+   | NODE_ENV           | production                               |
+   | CORS_ORIGINS       | https://nobarmeriah.com,https://www.nobarmeriah.com,https://nobarmeriah-frontend.vercel.app |
+
+D. GENERATE DOMAIN
+   1. Klik "Settings"
+   2. Scroll ke "Networking"
+   3. Klik "Generate Domain"
+   4. PORT: 8080 (atau sesuai yang dipakai backend)
+   5. Dapat URL: https://nobarmeriah-backend-production.up.railway.app
+   6. CATAT URL INI!
+
+E. TEST BACKEND
+   Buka di browser: https://nobarmeriah-backend-production.up.railway.app/health
+   Harusnya muncul: {"status":"ok",...}
+
+================================================================================
+                    STEP 3: DEPLOY FRONTEND KE VERCEL
+================================================================================
+
+A. LOGIN VERCEL
+   1. Buka https://vercel.com
+   2. Klik "Login" → Login dengan GitHub
+
+B. IMPORT PROJECT
+   1. Klik "Add New" → "Project"
+   2. Import repo "nobarmeriah-frontend"
+   3. Configure:
+      - Framework Preset: Vite
+      - Build Command: npm run build
+      - Output Directory: dist
+
+C. ADD ENVIRONMENT VARIABLES
+   1. Klik "Environment Variables"
+   2. Tambah:
+   
+   | Name                   | Value                                              |
+   |------------------------|----------------------------------------------------|
+   | VITE_API_BASE_URL      | https://nobarmeriah-backend-production.up.railway.app |
+   | VITE_SUPABASE_URL      | https://xxxxx.supabase.co                          |
+   | VITE_SUPABASE_ANON_KEY | eyJhbGciOiJIUzI1NiIs...                            |
+
+D. DEPLOY
+   1. Klik "Deploy"
+   2. Tunggu selesai (~1-2 menit)
+   3. Dapat URL: https://nobarmeriah-frontend.vercel.app
+
+================================================================================
+                      STEP 4: SETUP CUSTOM DOMAIN
+================================================================================
+
+A. DI VERCEL
+   1. Buka project → Settings → Domains
+   2. Add domain: nobarmeriah.com
+   3. Add domain: www.nobarmeriah.com
+
+B. DI NAMECHEAP (atau registrar lain)
+   1. Login Namecheap
+   2. Domain List → Manage → Advanced DNS
+   3. Hapus semua records yang ada
+   4. Tambah records baru:
+   
+   | Type   | Host | Value               | TTL       |
+   |--------|------|---------------------|-----------|
+   | A      | @    | 76.76.21.21         | Automatic |
+   | CNAME  | www  | cname.vercel-dns.com| Automatic |
+
+   5. Save changes
+   6. Tunggu propagate ~5-30 menit
+
+C. UPDATE CORS DI RAILWAY
+   1. Buka Railway → Variables
+   2. Edit CORS_ORIGINS:
+      https://nobarmeriah.com,https://www.nobarmeriah.com,https://nobarmeriah-frontend.vercel.app
+
+D. TEST
+   Buka: https://www.nobarmeriah.com
+   Harusnya website live dan connected!
+
+================================================================================
+                         CARA UPDATE WEBSITE
+================================================================================
+
+SETIAP ADA PERUBAHAN CODE:
+
+1. Edit file di VS Code
+2. Buka terminal di folder project
+3. Jalankan:
+   ```
+   git add .
+   git commit -m "Deskripsi perubahan"
+   git push
+   ```
+4. SELESAI! Auto deploy dalam 1-2 menit
+
+FRONTEND → Push ke GitHub → Vercel auto deploy
+BACKEND  → Push ke GitHub → Railway auto deploy
+
+================================================================================
+                           TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "Cannot connect to API Football server" / Offline
+SOLUTION: 
+- Cek CORS_ORIGINS di Railway sudah include domain frontend
+- Format: https://domain.com (tanpa trailing slash)
+
+PROBLEM: "Application failed to respond" di Railway
+SOLUTION:
+- Cek PORT di generate domain = PORT yang dipakai backend
+- Cek Environment Variables sudah lengkap
+- Cek logs di Railway → Deployments
+
+PROBLEM: Push ke GitHub ditolak (secret detected)
+SOLUTION:
+- Pastikan .env ada di .gitignore
+- Jalankan: git rm --cached .env
+- Commit ulang dan push
+
+PROBLEM: Logo tidak muncul
+SOLUTION:
+- Taruh file logo di folder public/images/
+- Path di code: /images/namafile.png
+
+PROBLEM: CORS error di console
+SOLUTION:
+- Tambah domain ke CORS_ORIGINS di Railway
+- Tunggu redeploy selesai
+
+================================================================================
+                              USEFUL LINKS
+================================================================================
+
+- GitHub Repo Frontend : https://github.com/akumanja58-sudo/nobarmeriah-frontend
+- GitHub Repo Backend  : https://github.com/akumanja58-sudo/nobarmeriah-backend
+- Railway Dashboard    : https://railway.app
+- Vercel Dashboard     : https://vercel.com
+- Supabase Dashboard   : https://supabase.com
+- Namecheap DNS        : https://namecheap.com
+
+================================================================================
+                              LIVE URLS
+================================================================================
+
+- Website      : https://www.nobarmeriah.com
+- Backend API  : https://nobarmeriah-backend-production.up.railway.app
+- Health Check : https://nobarmeriah-backend-production.up.railway.app/health
+
+================================================================================
+                           ENVIRONMENT FILES
+================================================================================
+
+FILE: nobarmeriah-frontend/.env
+```
+VITE_API_BASE_URL=https://nobarmeriah-backend-production.up.railway.app
+VITE_SUPABASE_URL=https://efmbcbeviwihpwsqzczl.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+```
+
+FILE: nobarmeriah-backend/.env
+```
+API_FOOTBALL_KEY=1fc6485365cd4c504dc63f172a37838b
+SUPABASE_URL=https://efmbcbeviwihpwsqzczl.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+NODE_ENV=production
+CORS_ORIGINS=https://nobarmeriah.com,https://www.nobarmeriah.com
+```
+
+================================================================================
+                         CREATED WITH ❤️ BY CLAUDE
+================================================================================
