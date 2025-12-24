@@ -1,0 +1,133 @@
+
+CARA DEPLOY APLIKASI TEBAK SKOR KE SERVER (VPS)
+
+STEP 1 – SETUP VPS
+--------------------
+1. Login ke VPS Vultr via SSH:
+   ssh root@IP_VPS
+
+2. Update sistem:
+   apt update && apt upgrade -y
+
+3. Install NGINX:
+   apt install nginx -y
+   systemctl enable nginx
+   systemctl start nginx
+
+4. Install Git (opsional kalau upload via GitHub):
+   apt install git -y
+
+5. Install Node.js (V18):
+   curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+   apt install -y nodejs
+   node -v && npm -v
+
+STEP 2 – UPLOAD PROJEK REACT KE SERVER
+---------------------------------------
+1. Buat folder project:
+   mkdir -p /var/www/tebakskor
+
+2. Upload file dari lokal via FileZilla ke:
+   /var/www/tebakskor
+
+   📌 Jangan upload:
+   - node_modules/
+   - dist/
+
+   📌 Yang wajib diupload:
+   - src/
+   - index.html
+   - package.json
+   - tailwind.config.js
+   - postcss.config.js
+
+3. Masuk ke folder & build:
+   cd /var/www/tebakskor
+   rm -rf node_modules dist
+   npm install
+   npm run build
+
+   ✔️ Hasil build ada di: /var/www/tebakskor/dist
+
+STEP 3 – KONFIGURASI NGINX
+---------------------------
+1. Buat file NGINX baru:
+   nano /etc/nginx/sites-available/tebakskor
+
+2. Isi config awal:
+   server {
+       listen 80;
+       server_name _;
+       root /var/www/tebakskor/dist;
+       index index.html;
+
+       location / {
+           try_files $uri /index.html;
+       }
+   }
+
+3. Aktifkan config:
+   ln -s /etc/nginx/sites-available/tebakskor /etc/nginx/sites-enabled/
+
+4. Matikan default NGINX:
+   rm /etc/nginx/sites-enabled/default
+
+5. Reload NGINX:
+   nginx -t && systemctl reload nginx
+
+STEP 4 – PASANG SSL HTTPS
+--------------------------
+1. Install Certbot:
+   apt install certbot python3-certbot-nginx -y
+
+2. Edit config NGINX agar pakai domain:
+   nano /etc/nginx/sites-available/tebakskor
+
+   Ganti:
+   server_name _;
+   ➜ Jadi:
+   server_name nobazmeriah.com www.nobazmeriah.com;
+
+3. Tambahkan SSL manual:
+   server {
+       listen 80;
+       server_name nobazmeriah.com www.nobazmeriah.com;
+       return 301 https://$host$request_uri;
+   }
+
+   server {
+       listen 443 ssl;
+       server_name nobazmeriah.com www.nobazmeriah.com;
+
+       root /var/www/tebakskor/dist;
+       index index.html;
+
+       ssl_certificate /etc/letsencrypt/live/nobazmeriah.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/nobazmeriah.com/privkey.pem;
+
+       location / {
+           try_files $uri /index.html;
+       }
+   }
+
+4. Reload ulang:
+   nginx -t && systemctl reload nginx
+
+5. Tes auto-renew SSL:
+   certbot renew --dry-run
+
+STEP 5 – PROTEKSI VPS
+-----------------------
+1. Aktifkan firewall UFW:
+   apt install ufw -y
+   ufw allow OpenSSH
+   ufw allow 'Nginx Full'
+   ufw enable
+
+2. Install Fail2Ban (proteksi SSH brute-force):
+   apt install fail2ban -y
+   systemctl enable fail2ban
+   systemctl start fail2ban
+
+3. (Opsional) Hapus halaman default NGINX:
+   rm -rf /var/www/html

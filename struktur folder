@@ -1,0 +1,43 @@
+livescore-backend/
+├── src/
+│   ├── config/
+│   │   ├── database.js
+│   │   ├── supabase.js
+│   │   └── api-football.js
+│   ├── controllers/
+│   │   ├── leaguesController.js
+│   │   ├── teamsController.js
+│   │   ├── fixturesController.js
+│   │   ├── liveController.js
+│   │   ├── standingsController.js
+│   │   ├── playersController.js
+│   │   └── oddsController.js
+│   ├── middleware/
+│   │   ├── auth.js
+│   │   ├── validation.js
+│   │   ├── rateLimiter.js
+│   │   └── errorHandler.js
+│   ├── routes/
+│   │   ├── index.js
+│   │   ├── leagues.js
+│   │   ├── teams.js
+│   │   ├── fixtures.js
+│   │   ├── live.js
+│   │   ├── standings.js
+│   │   ├── players.js
+│   │   └── odds.js
+│   ├── services/
+│   │   ├── apiFootballService.js
+│   │   ├── supabaseService.js
+│   │   └── syncService.js
+│   ├── jobs/
+│   │   ├── syncFixtures.js
+│   │   ├── updateLiveScores.js
+│   │   └── syncStatistics.js
+│   ├── utils/
+│   │   ├── logger.js
+│   │   ├── cache.js
+│   │   └── helpers.js
+│   └── app.js
+├── package.json
+└── server.js

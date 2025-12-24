@@ -1,0 +1,848 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes pulseBlue {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px #3b82f6, 0 0 40px #3b82f6;
+    }
+
+    50% {
+        box-shadow: 0 0 30px #3b82f6, 0 0 60px #3b82f6, 0 0 80px #3b82f6;
+    }
+}
+
+@keyframes pulseGreen {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px #22c55e, 0 0 40px #22c55e;
+    }
+
+    50% {
+        box-shadow: 0 0 30px #22c55e, 0 0 60px #22c55e, 0 0 80px #22c55e;
+    }
+}
+
+@keyframes pulseFire {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px #ef4444, 0 0 40px #f97316;
+    }
+
+    50% {
+        box-shadow: 0 0 30px #ef4444, 0 0 60px #f97316, 0 0 80px #fbbf24;
+    }
+}
+
+@keyframes shimmerGold {
+    0% {
+        box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3), 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+
+    50% {
+        box-shadow: inset 0 0 30px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.8);
+    }
+
+    100% {
+        box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.3), 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+}
+
+@keyframes diamondShine {
+
+    0%,
+    100% {
+        box-shadow: 0 0 30px #ffffff, 0 0 60px #e5e7eb;
+    }
+
+    50% {
+        box-shadow: 0 0 50px #ffffff, 0 0 100px #f3f4f6, 0 0 150px #ffffff;
+    }
+}
+
+@keyframes rainbowPulse {
+    0% {
+        box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+    }
+
+    16% {
+        box-shadow: 0 0 20px #ff8000, 0 0 40px #ff8000;
+    }
+
+    33% {
+        box-shadow: 0 0 20px #ffff00, 0 0 40px #ffff00;
+    }
+
+    50% {
+        box-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00;
+    }
+
+    66% {
+        box-shadow: 0 0 20px #0080ff, 0 0 40px #0080ff;
+    }
+
+    83% {
+        box-shadow: 0 0 20px #8000ff, 0 0 40px #8000ff;
+    }
+
+    100% {
+        box-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+    }
+}
+
+@keyframes championGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 30px #ffd700, 0 0 60px #ffed4a;
+    }
+
+    50% {
+        box-shadow: 0 0 50px #ffd700, 0 0 100px #ffed4a, 0 0 150px #fff59d;
+    }
+}
+
+@keyframes fireFlicker {
+    0% {
+        box-shadow: 0 0 15px #f97316, 0 0 30px #ea580c;
+    }
+
+    100% {
+        box-shadow: 0 0 25px #f97316, 0 0 50px #ea580c, 0 0 75px #dc2626;
+    }
+}
+
+@keyframes bloodRage {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px #dc2626, 0 0 40px #b91c1c;
+    }
+
+    50% {
+        box-shadow: 0 0 40px #dc2626, 0 0 80px #b91c1c, 0 0 120px #991b1b;
+    }
+}
+
+@keyframes legendaryPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 30px #8b5cf6, 0 0 60px #7c3aed;
+    }
+
+    50% {
+        box-shadow: 0 0 50px #8b5cf6, 0 0 100px #7c3aed, 0 0 150px #6d28d9;
+    }
+}
+
+@keyframes floatUp {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes victoryGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px #059669;
+    }
+
+    50% {
+        box-shadow: 0 0 30px #059669, 0 0 45px #10b981;
+    }
+}
+
+@keyframes championBadge {
+
+    0%,
+    100% {
+        box-shadow: 0 0 25px #d97706, 0 0 50px #f59e0b;
+    }
+
+    50% {
+        box-shadow: 0 0 40px #d97706, 0 0 80px #f59e0b, 0 0 120px #fbbf24;
+    }
+}
+
+@keyframes legendStatus {
+
+    0%,
+    100% {
+        box-shadow: 0 0 40px #ffd700, 0 0 80px #ffed4a;
+    }
+
+    50% {
+        box-shadow: 0 0 60px #ffd700, 0 0 120px #ffed4a, 0 0 180px #fff59d;
+    }
+}
+
+@keyframes rotate360 {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* SMOOTH BOUNCE GOLD - Tambah ke index.css */
+
+@keyframes smoothBounce {
+
+    0%,
+    100% {
+        transform: translateY(0px) scale(1);
+        box-shadow: 0 4px 25px rgba(255, 215, 0, 0.3), 0 0 0 1px rgba(255, 215, 0, 0.2);
+    }
+
+    50% {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 12px 35px rgba(255, 215, 0, 0.4), 0 0 0 2px rgba(255, 215, 0, 0.3);
+    }
+}
+
+@keyframes smoothBounceRed {
+
+    0%,
+    100% {
+        transform: translateY(0px) scale(1);
+        box-shadow: 0 4px 25px rgba(255, 107, 107, 0.3), 0 0 0 1px rgba(255, 107, 107, 0.2);
+    }
+
+    50% {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4), 0 0 0 2px rgba(255, 107, 107, 0.3);
+    }
+}
+
+@keyframes badgeFloat {
+
+    0%,
+    100% {
+        transform: translateY(0px) scale(1);
+    }
+
+    50% {
+        transform: translateY(-2px) scale(1.05);
+    }
+}
+
+/* Classes untuk HOT MATCHES */
+.hot-match-smooth {
+    border: 3px solid #ffd700;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(255, 237, 74, 0.05));
+    animation: smoothBounce 4s ease-in-out infinite;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.hot-match-smooth:hover {
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 15px 40px rgba(255, 215, 0, 0.5), 0 0 0 3px rgba(255, 215, 0, 0.4);
+}
+
+.hot-match-red {
+    border: 3px solid #ff6b6b;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.05), rgba(255, 142, 83, 0.05));
+    animation: smoothBounceRed 4s ease-in-out infinite;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.hot-match-red:hover {
+    transform: translateY(-5px) scale(1.03);
+    box-shadow: 0 15px 40px rgba(255, 107, 107, 0.5), 0 0 0 3px rgba(255, 107, 107, 0.4);
+}
+
+.hot-badge-smooth {
+    background: linear-gradient(135deg, #ffd700, #ffed4a);
+    border: 1px solid #f39c12;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    animation: badgeFloat 3s ease-in-out infinite;
+}
+
+.hot-badge-red {
+    background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+    border: 1px solid #ff4757;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    animation: badgeFloat 3s ease-in-out infinite;
+}
+
+/* Score Animations */
+@keyframes scoreUpdate {
+    0% {
+        background-color: #ef4444;
+        color: white;
+        transform: scale(1);
+    }
+
+    50% {
+        background-color: #dc2626;
+        color: white;
+        transform: scale(1.1);
+    }
+
+    100% {
+        background-color: transparent;
+        color: inherit;
+        transform: scale(1);
+    }
+}
+
+@keyframes goalFlash {
+    0% {
+        background-color: #22c55e;
+        color: white;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+
+    50% {
+        background-color: #16a34a;
+        color: white;
+        transform: scale(1.2);
+        box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+    }
+
+    100% {
+        background-color: transparent;
+        color: inherit;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+
+.score-update {
+    animation: scoreUpdate 1s ease-in-out;
+}
+
+.goal-flash {
+    animation: goalFlash 1.5s ease-in-out;
+}
+
+.score-container {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.score-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 🎯 SCORE UPDATE ANIMATIONS - Add to your global CSS */
+
+/* Basic score update animation */
+.score-update {
+    animation: scoreUpdate 1.5s ease-out;
+}
+
+@keyframes scoreUpdate {
+    0% {
+        transform: scale(1);
+        color: inherit;
+    }
+
+    25% {
+        transform: scale(1.2);
+        color: #3b82f6;
+        /* Blue highlight */
+    }
+
+    50% {
+        transform: scale(1.1);
+        color: #1d4ed8;
+        /* Darker blue */
+    }
+
+    100% {
+        transform: scale(1);
+        color: inherit;
+    }
+}
+
+/* Goal celebration animation */
+.goal-flash {
+    animation: goalFlash 2s ease-out;
+}
+
+@keyframes goalFlash {
+    0% {
+        transform: scale(1);
+        color: inherit;
+        background-color: transparent;
+    }
+
+    15% {
+        transform: scale(1.4);
+        color: #ffffff;
+        background-color: #22c55e;
+        border-radius: 4px;
+        padding: 2px 6px;
+    }
+
+    30% {
+        transform: scale(1.3);
+        color: #ffffff;
+        background-color: #16a34a;
+    }
+
+    50% {
+        transform: scale(1.2);
+        color: #ffffff;
+        background-color: #15803d;
+    }
+
+    70% {
+        transform: scale(1.1);
+        color: #22c55e;
+        background-color: transparent;
+    }
+
+    100% {
+        transform: scale(1);
+        color: inherit;
+        background-color: transparent;
+        padding: 0;
+    }
+}
+
+/* Enhanced goal celebration */
+.goal-celebration {
+    animation: goalCelebration 3s ease-out;
+}
+
+@keyframes goalCelebration {
+    0% {
+        transform: scale(1) rotate(0deg);
+        color: inherit;
+        text-shadow: none;
+    }
+
+    10% {
+        transform: scale(1.5) rotate(5deg);
+        color: #fbbf24;
+        text-shadow: 0 0 10px #f59e0b;
+    }
+
+    20% {
+        transform: scale(1.4) rotate(-3deg);
+        color: #f59e0b;
+        text-shadow: 0 0 15px #d97706;
+    }
+
+    30% {
+        transform: scale(1.6) rotate(2deg);
+        color: #dc2626;
+        text-shadow: 0 0 20px #b91c1c;
+    }
+
+    50% {
+        transform: scale(1.3) rotate(-1deg);
+        color: #16a34a;
+        text-shadow: 0 0 15px #15803d;
+    }
+
+    70% {
+        transform: scale(1.2) rotate(1deg);
+        color: #2563eb;
+        text-shadow: 0 0 10px #1d4ed8;
+    }
+
+    85% {
+        transform: scale(1.1) rotate(0deg);
+        color: #7c3aed;
+        text-shadow: 0 0 5px #6d28d9;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        color: inherit;
+        text-shadow: none;
+    }
+}
+
+/* Score transition effect */
+.score-transition {
+    transition: all 0.3s ease-out;
+}
+
+/* Live match highlighting */
+.live-match-pulse {
+    animation: livePulse 2s infinite;
+}
+
+@keyframes livePulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* Match item live state */
+.match-live {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
+    position: relative;
+}
+
+.match-live::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #ef4444, #f87171, #ef4444);
+    animation: liveIndicator 2s infinite;
+}
+
+@keyframes liveIndicator {
+    0% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scaleX(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
+/* Status change animation */
+.status-change {
+    animation: statusChange 1s ease-out;
+}
+
+@keyframes statusChange {
+    0% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+
+    25% {
+        background-color: rgba(59, 130, 246, 0.1);
+        transform: scale(1.02);
+    }
+
+    50% {
+        background-color: rgba(59, 130, 246, 0.2);
+        transform: scale(1.01);
+    }
+
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+
+/* Minute progression animation */
+.minute-update {
+    animation: minuteUpdate 0.8s ease-out;
+}
+
+@keyframes minuteUpdate {
+    0% {
+        color: inherit;
+        transform: scale(1);
+    }
+
+    50% {
+        color: #10b981;
+        transform: scale(1.1);
+    }
+
+    100% {
+        color: inherit;
+        transform: scale(1);
+    }
+}
+
+/* Connection status indicators */
+.connection-connected {
+    color: #10b981;
+    animation: connectionPulse 2s infinite;
+}
+
+.connection-disconnected {
+    color: #ef4444;
+    animation: connectionError 1s infinite;
+}
+
+.connection-error {
+    color: #f59e0b;
+    animation: connectionWarning 1.5s infinite;
+}
+
+@keyframes connectionPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes connectionError {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@keyframes connectionWarning {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: rotate(0deg);
+    }
+
+    25% {
+        opacity: 0.8;
+        transform: rotate(-5deg);
+    }
+
+    75% {
+        opacity: 0.8;
+        transform: rotate(5deg);
+    }
+}
+
+/* Goal notification popup */
+.goal-notification {
+    animation: goalNotificationSlide 3s ease-out forwards;
+}
+
+@keyframes goalNotificationSlide {
+    0% {
+        transform: translateY(-100px) scale(0.8);
+        opacity: 0;
+    }
+
+    15% {
+        transform: translateY(0) scale(1.1);
+        opacity: 1;
+    }
+
+    25% {
+        transform: translateY(-5px) scale(1);
+        opacity: 1;
+    }
+
+    85% {
+        transform: translateY(-5px) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+/* New match appearance */
+.match-new {
+    animation: newMatchAppear 1.5s ease-out;
+}
+
+@keyframes newMatchAppear {
+    0% {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.95);
+        background-color: rgba(34, 197, 94, 0.1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: translateX(0) scale(1.02);
+        background-color: rgba(34, 197, 94, 0.05);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        background-color: transparent;
+    }
+}
+
+/* Batch update ripple effect */
+.batch-update {
+    animation: batchUpdateRipple 2s ease-out;
+}
+
+@keyframes batchUpdateRipple {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+        background-color: rgba(59, 130, 246, 0.05);
+    }
+
+    50% {
+        box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
+        background-color: rgba(59, 130, 246, 0.02);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        background-color: transparent;
+    }
+}
+
+/* Match finished celebration */
+.match-finished {
+    animation: matchFinished 2s ease-out;
+}
+
+@keyframes matchFinished {
+    0% {
+        background-color: transparent;
+        border-color: transparent;
+    }
+
+    25% {
+        background-color: rgba(34, 197, 94, 0.1);
+        border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    50% {
+        background-color: rgba(34, 197, 94, 0.15);
+        border-color: rgba(34, 197, 94, 0.5);
+    }
+
+    75% {
+        background-color: rgba(34, 197, 94, 0.1);
+        border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    100% {
+        background-color: transparent;
+        border-color: transparent;
+    }
+}
+
+/* Responsive animations - reduce motion for mobile */
+@media (max-width: 768px) {
+
+    .goal-celebration,
+    .goal-flash,
+    .score-update {
+        animation-duration: 1.5s;
+    }
+
+    .match-live::before {
+        height: 1px;
+    }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+
+    .goal-celebration,
+    .goal-flash,
+    .score-update,
+    .status-change,
+    .minute-update,
+    .live-match-pulse,
+    .connection-connected,
+    .connection-disconnected,
+    .connection-error {
+        animation: none;
+    }
+
+    .score-transition {
+        transition: none;
+    }
+
+    .match-live::before {
+        animation: none;
+        opacity: 0.8;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .goal-flash {
+        background-color: #047857;
+    }
+
+    .match-live {
+        background: linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, transparent 100%);
+    }
+
+    .status-change {
+        background-color: rgba(96, 165, 250, 0.1);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+
+    .goal-flash,
+    .goal-celebration {
+        border: 2px solid currentColor;
+    }
+
+    .match-live::before {
+        height: 3px;
+        background: #ef4444;
+    }
+
+    .connection-connected {
+        font-weight: bold;
+    }
+
+    .connection-disconnected,
+    .connection-error {
+        text-decoration: underline;
+    }
+}
