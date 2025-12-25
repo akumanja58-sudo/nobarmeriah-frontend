@@ -72,7 +72,7 @@ const RewardShop = ({ user }) => {
 
         const { data: profile, error } = await supabase
             .from('profiles')
-            .select('points')
+            .select('points, season_points, total_experience')
             .eq('email', user.email)
             .single();
 
@@ -81,7 +81,8 @@ const RewardShop = ({ user }) => {
             return;
         }
 
-        const totalPoints = Number(profile?.points) || 0;
+        // Prioritas: season_points > total_experience > points
+        const totalPoints = Number(profile?.season_points) || Number(profile?.total_experience) || Number(profile?.points) || 0;
         setPoints(totalPoints);
     };
 
