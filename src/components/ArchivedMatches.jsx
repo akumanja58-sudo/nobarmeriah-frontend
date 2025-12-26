@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Archive, Calendar, Trophy, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
-// import backendService from '../services/backendService';
+import backendService from '../services/BackendApiService';
 import RealTimeMatchItem from './RealTimeMatchItem';
 
 const ArchivedMatches = ({ onMatchClick }) => {
@@ -19,7 +19,7 @@ const ArchivedMatches = ({ onMatchClick }) => {
             setIsLoading(true);
             const offset = page * MATCHES_PER_PAGE;
 
-            // const result = await backendService.getArchivedMatches(MATCHES_PER_PAGE, offset);
+            const result = await backendService.getArchivedMatches(MATCHES_PER_PAGE, offset);
 
             if (result.success) {
                 const newMatches = result.data.matches || [];
@@ -45,16 +45,16 @@ const ArchivedMatches = ({ onMatchClick }) => {
     };
 
     // Fetch archive stats
-    // const fetchArchiveStats = async () => {
-    //     try {
-    //         const result = await backendService.getArchiveStats();
-    //         if (result.success) {
-    //             setArchiveStats(result.stats);
-    //         }
-    //     } catch (error) {
-    //         console.error('Archive stats error:', error);
-    //     }
-    // };
+    const fetchArchiveStats = async () => {
+        try {
+            const result = await backendService.getArchiveStats();
+            if (result.success) {
+                setArchiveStats(result.stats);
+            }
+        } catch (error) {
+            console.error('Archive stats error:', error);
+        }
+    };
 
     // Load more matches
     const loadMoreMatches = () => {
@@ -107,7 +107,7 @@ const ArchivedMatches = ({ onMatchClick }) => {
             </div>
 
             {/* Stats */}
-            {archiveStats.archived_matches && (
+            {archiveStats.archived_matches !== undefined && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                     <div className="bg-white rounded-lg p-4 shadow-sm border">
                         <div className="text-2xl font-condensed text-gray-900">{archiveStats.archived_matches}</div>
@@ -124,6 +124,16 @@ const ArchivedMatches = ({ onMatchClick }) => {
                     <div className="bg-white rounded-lg p-4 shadow-sm border">
                         <div className="text-2xl font-condensed text-green-600">{archivedMatches.length}</div>
                         <div className="text-sm text-gray-600">Loaded</div>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading State */}
+            {isLoading && archivedMatches.length === 0 && (
+                <div className="flex items-center justify-center py-20">
+                    <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-gray-600">Loading archived matches...</span>
                     </div>
                 </div>
             )}
@@ -162,7 +172,7 @@ const ArchivedMatches = ({ onMatchClick }) => {
             </div>
 
             {/* Load More */}
-            {hasMore && (
+            {hasMore && archivedMatches.length > 0 && (
                 <div className="text-center mt-8">
                     <button
                         onClick={loadMoreMatches}

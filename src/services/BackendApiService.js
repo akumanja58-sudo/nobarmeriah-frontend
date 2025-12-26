@@ -1,424 +1,544 @@
-// Updated BackendService.js - Connect to new backend (localhost:5000)
-class BackendService {
-    constructor() {
-        // UPDATED: Use environment variable for backend URL
-        this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-        this.isConnected = true;
-        this.listeners = new Map();
+const express = require('express');
+const router = express.Router();
+const apiFootball = require('../services/apiFootball');
+const matchSync = require('../services/matchSync');
+const { supabase } = require('../config/database');
 
-        // Polling control
-        this.isPolling = false;
-        this.pollTimeoutId = null;
-        this.maxConsecutiveErrors = 5;
-        this.consecutiveErrors = 0;
-        this.lastDataSnapshots = new Map();
+/**
+ * GET /api/matches/archived
+ * Get archived/finished matches from database
+ */
+router.get('/archived', async (req, res) => {
+    try {
+        const { limit = 20, offset = 0, league, date_from, date_to } = req.query;
 
-        // Resource monitoring
-        this.maxMemoryUsage = 400 * 1024 * 1024; // 400MB limit
-        this.pollingInterval = 30000; // Default 30s
-
-        // Bind context
-        this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-
-        console.log('[BackendService] Initialized with URL:', this.baseUrl);
-    }
-
-    // Mock WebSocket-like event system using polling
-    on(event, callback) {
-        if (!this.listeners.has(event)) {
-            this.listeners.set(event, []);
-        }
-        this.listeners.get(event).push(callback);
-
-        if (event === 'match_update' && !this.isPolling) {
-            this.startLivePolling();
-        }
-    }
-
-    off(event, callback = null) {
-        if (callback) {
-            const callbacks = this.listeners.get(event) || [];
-            const index = callbacks.indexOf(callback);
-            if (index > -1) callbacks.splice(index, 1);
-        } else {
-            this.listeners.delete(event);
-        }
-
-        if (!this.listeners.has('match_update') || this.listeners.get('match_update').length === 0) {
-            this.stopLivePolling();
-        }
-    }
-
-    emit(event, data) {
-        const callbacks = this.listeners.get(event) || [];
-        callbacks.forEach(callback => callback(data));
-    }
-
-    // UPDATED: Check server health
-    async checkServerStatus() {
-        try {
-            // Remove /api from baseUrl for health check
-            const healthUrl = this.baseUrl.replace('/api', '/health');
-            const response = await fetch(healthUrl, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.isConnected = true;
-                console.log('[BackendService] Health check OK:', data.status);
-                return { success: true, data };
-            } else {
-                this.isConnected = false;
-                return { success: false, error: `HTTP ${response.status}` };
-            }
-        } catch (error) {
-            this.isConnected = false;
-            console.error('[BackendService] Health check failed:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    // Start polling for live match updates
-    startLivePolling() {
-        if (this.isPolling) {
-            console.log('[BackendService] Polling already running');
-            return;
-        }
-
-        console.log('[BackendService] Starting live polling...');
-        this.isPolling = true;
-        this.consecutiveErrors = 0;
-
-        document.addEventListener('visibilitychange', this.handleVisibilityChange);
-        this.pollLoop();
-    }
-
-    async pollLoop() {
-        if (!this.isPolling) {
-            console.log('[BackendService] Polling stopped');
-            return;
-        }
-
-        try {
-            const startTime = Date.now();
-
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout')), 10000)
-            );
-
-            const liveMatchesPromise = this.getLiveFixtures();
-            const liveMatches = await Promise.race([liveMatchesPromise, timeoutPromise]);
-
-            const responseTime = Date.now() - startTime;
-            let updateCount = 0;
-
-            if (liveMatches.success && liveMatches.data) {
-                updateCount = this.processMatchUpdates(liveMatches.data);
-            }
-
-            this.consecutiveErrors = 0;
-
-            const liveCount = liveMatches.data?.length || 0;
-            this.pollingInterval = this.calculateInterval(liveCount, responseTime);
-
-            if (updateCount > 0) {
-                console.log(`[BackendService] ${updateCount} updates, next poll in ${this.pollingInterval / 1000}s`);
-            }
-
-        } catch (error) {
-            this.consecutiveErrors++;
-            console.error(`[BackendService] Poll error ${this.consecutiveErrors}:`, error.message);
-
-            if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
-                console.error('[BackendService] Too many errors - stopping');
-                this.emergencyStop();
-                return;
-            }
-
-            this.pollingInterval = Math.min(5000 * this.consecutiveErrors, 60000);
-        }
-
-        this.scheduleNextPoll();
-    }
-
-    scheduleNextPoll() {
-        if (!this.isPolling) return;
-
-        if (this.pollTimeoutId) {
-            clearTimeout(this.pollTimeoutId);
-            this.pollTimeoutId = null;
-        }
-
-        this.pollTimeoutId = setTimeout(() => {
-            this.pollLoop();
-        }, this.pollingInterval);
-    }
-
-    calculateInterval(liveCount, responseTime) {
-        let interval = 30000; // Default 30s
-
-        if (liveCount === 0) {
-            interval = 60000; // 1 minute no live
-        } else if (liveCount > 3) {
-            interval = 20000; // 20s many live
-        }
-
-        if (responseTime > 3000) {
-            interval += 10000;
-        }
-
-        if (document.hidden) {
-            interval *= 2;
-        }
-
-        return interval;
-    }
-
-    processMatchUpdates(matches) {
-        let updateCount = 0;
-
-        matches.forEach(match => {
-            const key = `live_${match.fixture_id || match.id}`;
-            const snapshot = `${match.home_score || 0}-${match.away_score || 0}-${match.status}`;
-
-            if (this.lastDataSnapshots.get(key) !== snapshot) {
-                this.emit('match_update', {
-                    match_id: match.fixture_id || match.id,
-                    home_score: match.home_score || 0,
-                    away_score: match.away_score || 0,
-                    status: match.status,
-                    is_live: true,
-                    timestamp: Date.now()
-                });
-
-                this.lastDataSnapshots.set(key, snapshot);
-                updateCount++;
-            }
-        });
-
-        return updateCount;
-    }
-
-    handleVisibilityChange() {
-        if (document.hidden) {
-            console.log('[BackendService] Tab hidden - slowing down');
-        } else {
-            console.log('[BackendService] Tab visible - resuming');
-            if (this.isPolling) {
-                this.scheduleNextPoll();
-            }
-        }
-    }
-
-    emergencyStop() {
-        console.error('[BackendService] EMERGENCY STOP');
-        this.stopLivePolling();
-
-        setTimeout(() => {
-            console.log('[BackendService] Attempting restart...');
-            if (!this.isPolling) {
-                this.startLivePolling();
-            }
-        }, 300000);
-    }
-
-    // UPDATED: Get all matches (live + today from new backend)
-    async getMatches(options = {}) {
-        try {
-            console.log('[BackendService] Fetching matches from:', this.baseUrl);
-
-            // Fetch live matches
-            const liveResponse = await fetch(`${this.baseUrl}/matches/live`);
-            const liveResult = await liveResponse.json();
-
-            // Fetch today matches
-            const todayResponse = await fetch(`${this.baseUrl}/matches/today`);
-            const todayResult = await todayResponse.json();
-
-            console.log('[BackendService] Live matches:', liveResult.count || 0);
-            console.log('[BackendService] Today matches:', todayResult.count || 0);
-
-            // Combine matches
-            const allMatches = [
-                ...(liveResult.data || []),
-                ...(todayResult.data || [])
-            ];
-
-            // Remove duplicates
-            const uniqueMatches = allMatches.reduce((acc, match) => {
-                if (!acc.find(m => m.fixture_id === match.fixture_id)) {
-                    acc.push(this.transformBackendMatch(match));
-                }
-                return acc;
-            }, []);
-
-            return {
-                success: true,
-                data: {
-                    matches: uniqueMatches,
-                    total: uniqueMatches.length
-                }
-            };
-
-        } catch (error) {
-            console.error('[BackendService] Error fetching matches:', error);
-            return {
+        if (!supabase) {
+            return res.status(500).json({
                 success: false,
-                error: error.message,
-                data: { matches: [], total: 0 }
-            };
+                error: 'Database not configured'
+            });
         }
-    }
 
-    // UPDATED: Transform backend match data to frontend format
-    transformBackendMatch(match) {
-        return {
-            id: match.fixture_id,
-            fixture_id: match.fixture_id,
-            home_team: match.home_team_name || 'Unknown',
-            away_team: match.away_team_name || 'Unknown',
-            home_score: match.home_score || 0,
-            away_score: match.away_score || 0,
-            status: match.status || match.status_short,
-            status_short: match.status_short,
-            status_long: match.status,
-            minute: match.elapsed,
-            elapsed: match.elapsed,
-            date: match.match_date,
-            match_date: match.match_date,
-            league: match.league_name || 'Unknown',
-            league_id: match.league_id,
-            league_name: match.league_name,
-            country: match.league_country,
-            country_flag: match.league_flag,
+        // Build query for finished matches
+        let query = supabase
+            .from('matches')
+            .select('*')
+            .in('status_short', ['FT', 'AET', 'PEN', 'AWD', 'WO']) // Finished statuses
+            .order('date', { ascending: false })
+            .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+        // Optional filters
+        if (league) {
+            query = query.eq('league_id', parseInt(league));
+        }
+
+        if (date_from) {
+            query = query.gte('date', date_from);
+        }
+
+        if (date_to) {
+            query = query.lte('date', date_to);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) {
+            console.error('❌ Archive query error:', error);
+            return res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        // Transform to frontend format
+        const matches = (data || []).map(match => ({
+            id: match.id,
+            fixture_id: match.id,
+            date: match.date,
+            match_date: match.date,
+            local_date: new Date(match.date).toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            }),
+            kickoff_date: match.date,
+            timestamp: match.timestamp,
             venue: match.venue,
             venue_city: match.venue_city,
-            referee: match.referee,
-            home_logo: match.home_team_logo,
-            away_logo: match.away_team_logo,
+            status: match.status,
+            status_short: match.status_short,
+            status_long: match.status_long,
+            elapsed: match.elapsed,
+            is_live: false,
+            is_finished: true,
+            league_id: match.league_id,
+            league_name: match.league_name,
+            league_country: match.league_country,
             league_logo: match.league_logo,
-            flag: match.league_flag,
-            is_live: match.is_live || false,
-            is_finished: ['FT', 'AET', 'PEN'].includes(match.status_short?.toUpperCase()),
-            source: 'backend',
-            lastUpdated: Date.now()
-        };
+            league_flag: match.league_flag,
+            league_round: match.league_round,
+            home_team_id: match.home_team_id,
+            home_team: match.home_team_name,
+            home_team_name: match.home_team_name,
+            home_team_logo: match.home_team_logo,
+            home_logo: match.home_team_logo,
+            away_team_id: match.away_team_id,
+            away_team: match.away_team_name,
+            away_team_name: match.away_team_name,
+            away_team_logo: match.away_team_logo,
+            away_logo: match.away_team_logo,
+            home_score: match.home_score,
+            away_score: match.away_score,
+            ht_home: match.ht_home,
+            ht_away: match.ht_away,
+            ft_home: match.ft_home,
+            ft_away: match.ft_away,
+            source: 'database'
+        }));
+
+        console.log(`📦 Archive: Found ${matches.length} finished matches`);
+
+        res.json({
+            success: true,
+            data: {
+                matches: matches,
+                total: matches.length,
+                offset: parseInt(offset),
+                limit: parseInt(limit),
+                hasMore: matches.length === parseInt(limit)
+            },
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Archive error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
+});
 
-    // UPDATED: Get live fixtures specifically
-    async getLiveFixtures() {
-        try {
-            const response = await fetch(`${this.baseUrl}/matches/live`);
-
-            if (response.ok) {
-                const result = await response.json();
-
-                if (result.success) {
-                    const transformedMatches = (result.data || []).map(match =>
-                        this.transformBackendMatch(match)
-                    );
-                    return {
-                        success: true,
-                        data: transformedMatches
-                    };
-                } else {
-                    return {
-                        success: false,
-                        error: result.error || 'Failed to fetch live fixtures',
-                        data: []
-                    };
-                }
-            } else {
-                return {
-                    success: false,
-                    error: `HTTP ${response.status}`,
-                    data: []
-                };
-            }
-        } catch (error) {
-            console.error('[BackendService] Error fetching live fixtures:', error);
-            return {
+/**
+ * GET /api/matches/archived/stats
+ * Get archive statistics
+ */
+router.get('/archived/stats', async (req, res) => {
+    try {
+        if (!supabase) {
+            return res.status(500).json({
                 success: false,
-                error: error.message,
-                data: []
+                error: 'Database not configured'
+            });
+        }
+
+        // Get archived count (finished matches)
+        const { count: archivedCount, error: archivedError } = await supabase
+            .from('matches')
+            .select('*', { count: 'exact', head: true })
+            .in('status_short', ['FT', 'AET', 'PEN', 'AWD', 'WO']);
+
+        // Get active count (not finished)
+        const { count: activeCount, error: activeError } = await supabase
+            .from('matches')
+            .select('*', { count: 'exact', head: true })
+            .not('status_short', 'in', '("FT","AET","PEN","AWD","WO")');
+
+        // Get total count
+        const { count: totalCount, error: totalError } = await supabase
+            .from('matches')
+            .select('*', { count: 'exact', head: true });
+
+        if (archivedError || activeError || totalError) {
+            console.error('❌ Stats query error:', archivedError || activeError || totalError);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch stats'
+            });
+        }
+
+        const stats = {
+            archived_matches: archivedCount || 0,
+            active_matches: activeCount || 0,
+            total_matches: totalCount || 0
+        };
+
+        console.log(`📊 Archive stats:`, stats);
+
+        res.json({
+            success: true,
+            stats: stats,
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Stats error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/matches
+ * Get all matches (today + live by default)
+ */
+router.get('/', async (req, res) => {
+    try {
+        const { date, league, live } = req.query;
+
+        let result;
+
+        if (live === 'true') {
+            // Get live matches only
+            result = await apiFootball.getLiveMatches();
+        } else if (date) {
+            // Get matches by specific date
+            result = await apiFootball.getMatchesByDate(date);
+        } else if (league) {
+            // Get matches by league
+            result = await apiFootball.getMatchesByLeague(league);
+        } else {
+            // Default: get today's matches + any LIVE matches (including from yesterday)
+            console.log('📅 Fetching today matches + live matches...');
+
+            // Fetch both in parallel
+            const [todayResult, liveResult] = await Promise.all([
+                apiFootball.getTodayMatches(),
+                apiFootball.getLiveMatches()
+            ]);
+
+            // Combine results
+            const todayMatches = todayResult.success ? todayResult.data : [];
+            const liveMatches = liveResult.success ? liveResult.data : [];
+
+            // Merge and deduplicate by fixture ID
+            const matchMap = new Map();
+
+            // Add today's matches first
+            for (const match of todayMatches) {
+                matchMap.set(match.fixture.id, match);
+            }
+
+            // Add/update with live matches (live data is more current)
+            for (const match of liveMatches) {
+                matchMap.set(match.fixture.id, match);
+            }
+
+            const combinedMatches = Array.from(matchMap.values());
+
+            console.log(`✅ Combined: ${todayMatches.length} today + ${liveMatches.length} live = ${combinedMatches.length} unique matches`);
+
+            result = {
+                success: true,
+                data: combinedMatches
             };
         }
-    }
 
-    // UPDATED: Get today matches
-    async getTodayMatches() {
-        try {
-            const response = await fetch(`${this.baseUrl}/matches/today`);
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.error
+            });
+        }
 
-            if (response.ok) {
-                const result = await response.json();
+        // Transform data ke format yang clean
+        const matches = matchSync.transformMatches(result.data);
 
-                if (result.success) {
-                    const transformedMatches = (result.data || []).map(match =>
-                        this.transformBackendMatch(match)
-                    );
-                    return {
-                        success: true,
-                        data: transformedMatches
-                    };
-                } else {
-                    return {
-                        success: false,
-                        error: result.error || 'Failed to fetch today matches',
-                        data: []
-                    };
-                }
+        // League Tier Priority (lower = more important)
+        const TIER_1_LEAGUES = [
+            // Top 5 Leagues
+            'Premier League',
+            'La Liga',
+            'Serie A',
+            'Bundesliga',
+            'Ligue 1',
+            // European Competitions
+            'UEFA Champions League',
+            'Champions League',
+            'UEFA Europa League',
+            'Europa League',
+            'UEFA Europa Conference League',
+            'Conference League',
+            // International
+            'World Cup',
+            'UEFA Euro',
+            'Euro Championship',
+            'Copa America',
+            'AFC Asian Cup',
+            // Indonesia
+            'Liga 1',
+            'BRI Liga 1'
+        ];
+
+        const TIER_2_LEAGUES = [
+            'Eredivisie',
+            'Primeira Liga',
+            'Liga Portugal',
+            'Belgian Pro League',
+            'Scottish Premiership',
+            'Championship',
+            'Liga 2',
+            'Serie B',
+            'La Liga 2',
+            '2. Bundesliga',
+            'Ligue 2',
+            'MLS',
+            'Saudi Pro League',
+            'Super Lig'
+        ];
+
+        // Function to get league tier
+        const getLeagueTier = (leagueName) => {
+            if (!leagueName) return 99;
+            const name = leagueName.toLowerCase();
+
+            // Check TIER 1
+            for (const league of TIER_1_LEAGUES) {
+                if (name.includes(league.toLowerCase())) return 1;
             }
-            return { success: false, error: `HTTP ${response.status}`, data: [] };
-        } catch (error) {
-            console.error('[BackendService] Error fetching today matches:', error);
-            return { success: false, error: error.message, data: [] };
+
+            // Check TIER 2
+            for (const league of TIER_2_LEAGUES) {
+                if (name.includes(league.toLowerCase())) return 2;
+            }
+
+            // Default tier
+            return 3;
+        };
+
+        // Sort: LIVE first, then by tier, then by kickoff time
+        matches.sort((a, b) => {
+            const aLive = a.is_live || ['1H', '2H', 'HT', 'ET', 'BT', 'P'].includes(a.status_short);
+            const bLive = b.is_live || ['1H', '2H', 'HT', 'ET', 'BT', 'P'].includes(b.status_short);
+
+            // 1. LIVE matches first
+            if (aLive && !bLive) return -1;
+            if (!aLive && bLive) return 1;
+
+            // 2. If both LIVE or both not LIVE, sort by tier
+            const aTier = getLeagueTier(a.league_name);
+            const bTier = getLeagueTier(b.league_name);
+
+            if (aTier !== bTier) return aTier - bTier;
+
+            // 3. Same tier, sort by kickoff time
+            return new Date(a.date) - new Date(b.date);
+        });
+
+        console.log('📊 Sorted matches by: LIVE → Tier → Kickoff time');
+
+        // Group by league
+        const groupedByLeague = matches.reduce((acc, match) => {
+            const leagueName = match.league_name;
+            if (!acc[leagueName]) {
+                acc[leagueName] = {
+                    league_id: match.league_id,
+                    league_name: match.league_name,
+                    league_country: match.league_country,
+                    league_logo: match.league_logo,
+                    league_flag: match.league_flag,
+                    matches: []
+                };
+            }
+            acc[leagueName].matches.push(match);
+            return acc;
+        }, {});
+
+        res.json({
+            success: true,
+            count: matches.length,
+            matches: matches,
+            grouped: Object.values(groupedByLeague),
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/matches/live
+ * Get live matches only
+ */
+router.get('/live', async (req, res) => {
+    try {
+        const result = await apiFootball.getLiveMatches();
+
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.error
+            });
         }
+
+        const matches = matchSync.transformMatches(result.data);
+
+        res.json({
+            success: true,
+            count: matches.length,
+            matches: matches,
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
+});
 
-    // Connection status
-    isSocketConnected() {
-        return this.isConnected;
-    }
+/**
+ * GET /api/matches/:id
+ * Get match detail
+ */
+router.get('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { stats, events, lineups } = req.query;
 
-    onConnectionChange(callback) {
-        callback(this.isConnected ? 'connected' : 'disconnected');
-    }
+        // Get basic match info
+        const matchResult = await apiFootball.getMatchById(id);
 
-    // Cleanup methods
-    stopLivePolling() {
-        console.log('[BackendService] Stopping polling...');
-        this.isPolling = false;
-
-        if (this.pollTimeoutId) {
-            clearTimeout(this.pollTimeoutId);
-            this.pollTimeoutId = null;
+        if (!matchResult.success || matchResult.data.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Match not found'
+            });
         }
 
-        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-        this.lastDataSnapshots.clear();
+        const match = matchSync.transformMatch(matchResult.data[0]);
+        const response = { match };
+
+        // Optionally fetch additional data
+        if (stats === 'true') {
+            const statsResult = await apiFootball.getMatchStatistics(id);
+            if (statsResult.success) {
+                response.statistics = statsResult.data;
+            }
+        }
+
+        if (events === 'true') {
+            const eventsResult = await apiFootball.getMatchEvents(id);
+            if (eventsResult.success) {
+                response.events = eventsResult.data;
+            }
+        }
+
+        if (lineups === 'true') {
+            const lineupsResult = await apiFootball.getMatchLineups(id);
+            if (lineupsResult.success) {
+                response.lineups = lineupsResult.data;
+            }
+        }
+
+        res.json({
+            success: true,
+            ...response
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
+});
 
-    destroy() {
-        console.log('[BackendService] Destroying...');
-        this.stopLivePolling();
-        this.listeners.clear();
-        this.lastDataSnapshots.clear();
-        console.log('[BackendService] Destroyed');
+/**
+ * GET /api/matches/date/:date
+ * Get matches by date (format: YYYY-MM-DD)
+ */
+router.get('/date/:date', async (req, res) => {
+    try {
+        const { date } = req.params;
+
+        // Validate date format
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid date format. Use YYYY-MM-DD'
+            });
+        }
+
+        const result = await apiFootball.getMatchesByDate(date);
+
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        const matches = matchSync.transformMatches(result.data);
+
+        res.json({
+            success: true,
+            date: date,
+            count: matches.length,
+            matches: matches,
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
+});
 
-    cleanup() {
-        this.destroy();
+/**
+ * GET /api/matches/league/:leagueId
+ * Get matches by league
+ */
+router.get('/league/:leagueId', async (req, res) => {
+    try {
+        const { leagueId } = req.params;
+        const { date, season } = req.query;
+
+        let result;
+
+        if (date) {
+            result = await apiFootball.getFixtures({
+                league: leagueId,
+                date: date
+            });
+        } else {
+            result = await apiFootball.getMatchesByLeague(leagueId, season);
+        }
+
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        const matches = matchSync.transformMatches(result.data);
+
+        res.json({
+            success: true,
+            league_id: leagueId,
+            count: matches.length,
+            matches: matches,
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
-}
+});
 
-// Export singleton instance
-const backendService = new BackendService();
-
-if (typeof window !== 'undefined') {
-    window.backendService = backendService;
-}
-
-export default backendService;
+module.exports = router;
