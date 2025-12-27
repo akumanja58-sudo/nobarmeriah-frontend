@@ -1,8 +1,19 @@
-// Updated BackendService.js - Connect to new backend (localhost:5000)
+// Updated BackendService.js - Connect to new backend
 class BackendService {
     constructor() {
         // UPDATED: Use environment variable for backend URL
-        this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+        // Normalize URL - ensure it ends with /api
+        let rawUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
+        // Remove trailing slash if exists
+        rawUrl = rawUrl.replace(/\/+$/, '');
+
+        // Add /api if not present
+        if (!rawUrl.endsWith('/api')) {
+            rawUrl = rawUrl + '/api';
+        }
+
+        this.baseUrl = rawUrl;
         this.isConnected = true;
         this.listeners = new Map();
 
