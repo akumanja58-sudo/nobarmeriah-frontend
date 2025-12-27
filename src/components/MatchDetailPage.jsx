@@ -983,6 +983,15 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D] p-2 sm:p-4 overflow-x-hidden">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="max-w-7xl mx-auto px-0 sm:px-4 py-2 sm:py-4">
+
+                {/* Back to Matches - Top */}
+                <div className="mb-3">
+                    <button onClick={goBack} className="px-4 py-2 bg-white text-gray-700 rounded-xl font-condensed hover:bg-gray-100 transition-colors shadow-sm border border-gray-200 flex items-center gap-2">
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Matches
+                    </button>
+                </div>
+
                 <MatchHeader />
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-6">
@@ -1016,14 +1025,17 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                     </div>
                 </div>
 
-                <div className="mt-6 flex items-center justify-between">
+                {/* Loading indicator */}
+                {detailsLoading && (
+                    <div className="mt-4 flex items-center justify-center gap-2 text-blue-600">
+                        <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                        <span className="text-sm">Loading match details...</span>
+                    </div>
+                )}
+
+                {/* Back to Matches - Bottom */}
+                <div className="mt-6">
                     <button onClick={goBack} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-condensed hover:bg-gray-300 transition-colors">← Back to Matches</button>
-                    {detailsLoading && (
-                        <div className="flex items-center gap-2 text-blue-600">
-                            <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                            <span className="text-sm">Loading match details...</span>
-                        </div>
-                    )}
                 </div>
             </motion.div>
         </div>
