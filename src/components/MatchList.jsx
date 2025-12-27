@@ -348,13 +348,14 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
 
     }, [matches, filters]);
 
-    // Group matches by league
+    // Group matches by league_id (to avoid mixing leagues with same name like "Premier League")
     useEffect(() => {
         const grouped = {};
         filteredMatches.forEach((match) => {
-            const liga = match.league || 'Unknown League';
-            if (!grouped[liga]) grouped[liga] = [];
-            grouped[liga].push(match);
+            // Use league_id as unique key, fallback to league name if no id
+            const leagueKey = match.league_id ? `league_${match.league_id}` : (match.league || 'Unknown League');
+            if (!grouped[leagueKey]) grouped[leagueKey] = [];
+            grouped[leagueKey].push(match);
         });
         setGroupedMatches(grouped);
     }, [filteredMatches]);
