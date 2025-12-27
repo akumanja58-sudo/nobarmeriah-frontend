@@ -1,14 +1,15 @@
 // MatchDetailPage.jsx - Tampilan dari PredictionForm + Logic dari Backend Baru
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Star, Calendar, MapPin, Users, Trophy, TrendingUp, Target, Clock,
+    Star, Tv, Calendar, MapPin, Users, Trophy, TrendingUp, Target, Clock,
     User, Flag, ChevronRight, ChevronLeft, Coins, Gift, Wifi, WifiOff,
     Activity, ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import dayjs from 'dayjs';
 import { useMatchDetail, useConnectionStatus, useStandings, useOdds } from '../hooks/useMatchDetail';
+import StreamingPlayer from './StreamingPlayer';
 import StatusManager from '../utils/StatusManager';
 
 // ============= TEAM LOGO COMPONENT =============
@@ -729,6 +730,7 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
 
     const TabNavigation = () => {
         const tabs = [
+            { id: 'stream', label: 'Live', icon: Tv },  // NEW: Tab streaming di posisi pertama
             { id: 'events', label: 'Events', icon: Activity },
             { id: 'stats', label: 'Stats', icon: TrendingUp },
             { id: 'lineups', label: 'Lineups', icon: User },
@@ -740,10 +742,23 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                 <div className="flex">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
+                        const isStreamTab = tab.id === 'stream';
                         return (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 flex items-center justify-center gap-1 py-3 px-2 text-xs font-condensed transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex-1 flex items-center justify-center gap-1 py-3 px-2 text-xs font-condensed transition-all ${activeTab === tab.id
+                                    ? isStreamTab
+                                        ? 'bg-red-600 text-white'  // Red for stream tab when active
+                                        : 'bg-blue-600 text-white'
+                                    : isStreamTab
+                                        ? 'text-red-600 hover:bg-red-50'  // Red tint for stream tab
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                            >
                                 <Icon className="w-3 h-3" />
                                 <span className="hidden sm:inline">{tab.label}</span>
+                                {isStreamTab && <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse ml-1" />}
                             </button>
                         );
                     })}
@@ -936,6 +951,32 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
         );
     };
 
+    // Memoize StreamTab to prevent re-render when parent updates
+    const streamTabContent = useMemo(() => {
+        if (!liveMatchData) return null;
+        return (
+            <StreamingPlayer
+                homeTeam={liveMatchData?.home_team || liveMatchData?.home_team_name}
+                awayTeam={liveMatchData?.away_team || liveMatchData?.away_team_name}
+                matchDate={liveMatchData?.date}
+                matchId={liveMatchData?.id}
+                isLive={isLive}
+                isFinished={isFinished}
+                matchStatus={status}
+            />
+        );
+    }, [
+        liveMatchData?.home_team,
+        liveMatchData?.home_team_name,
+        liveMatchData?.away_team,
+        liveMatchData?.away_team_name,
+        liveMatchData?.date,
+        liveMatchData?.id,
+        isLive,
+        isFinished,
+        status
+    ]);
+
     // ============= MAIN RENDER =============
     if (!liveMatchData) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>;
 
@@ -945,26 +986,33 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                 <MatchHeader />
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div className="lg:col-span-1">
+                    {/* Mobile: Tabs + Content first, Desktop: Sidebar first */}
+                    <div className="lg:col-span-3 order-1 lg:order-2">
+                        <TabNavigation />
+                        <AnimatePresence mode="wait">
+                            <motion.div key={activeTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+                                {activeTab === 'stream' ? (
+                                    // Stream tab - no white background wrapper (memoized)
+                                    streamTabContent
+                                ) : (
+                                    <div className="bg-white rounded-xl shadow-lg p-6">
+                                        {activeTab === 'events' && <EventsTab />}
+                                        {activeTab === 'stats' && <StatsTab />}
+                                        {activeTab === 'lineups' && <LineupsTab />}
+                                        {activeTab === 'standing' && <StandingTab />}
+                                    </div>
+                                )}
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Sidebar - Mobile: after content, Desktop: before content */}
+                    <div className="lg:col-span-1 order-2 lg:order-1">
                         <OddsSection />
                         <PredictionSection />
                         <SeasonChallengeSection />
                         <InfoDetailSection />
                         <AdSection />
-                    </div>
-
-                    <div className="lg:col-span-3">
-                        <TabNavigation />
-                        <AnimatePresence mode="wait">
-                            <motion.div key={activeTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                                <div className="bg-white rounded-xl shadow-lg p-6">
-                                    {activeTab === 'events' && <EventsTab />}
-                                    {activeTab === 'stats' && <StatsTab />}
-                                    {activeTab === 'lineups' && <LineupsTab />}
-                                    {activeTab === 'standing' && <StandingTab />}
-                                </div>
-                            </motion.div>
-                        </AnimatePresence>
                     </div>
                 </div>
 
