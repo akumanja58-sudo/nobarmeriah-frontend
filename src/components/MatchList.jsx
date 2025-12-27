@@ -349,15 +349,74 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
     }, [matches, filters]);
 
     // Group matches by league_id (to avoid mixing leagues with same name like "Premier League")
+    // Also sort by tier: LIVE first, then top leagues, then others
     useEffect(() => {
+        // League Tier Priority (lower = more important)
+        const TIER_1_LEAGUES = [
+            'Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1',
+            'UEFA Champions League', 'Champions League', 'UEFA Europa League',
+            'Europa League', 'UEFA Europa Conference League', 'Conference League',
+            'World Cup', 'UEFA Euro', 'Euro Championship', 'Copa America',
+            'AFC Asian Cup', 'Liga 1', 'BRI Liga 1'
+        ];
+
+        const TIER_2_LEAGUES = [
+            'Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Belgian Pro League',
+            'Scottish Premiership', 'Championship', 'Liga 2', 'Serie B',
+            'La Liga 2', '2. Bundesliga', 'Ligue 2', 'MLS', 'Saudi Pro League', 'Super Lig'
+        ];
+
+        const getLeagueTier = (leagueName) => {
+            if (!leagueName) return 99;
+            const name = leagueName.toLowerCase();
+
+            for (const league of TIER_1_LEAGUES) {
+                if (name.includes(league.toLowerCase())) return 1;
+            }
+            for (const league of TIER_2_LEAGUES) {
+                if (name.includes(league.toLowerCase())) return 2;
+            }
+            return 3;
+        };
+
         const grouped = {};
         filteredMatches.forEach((match) => {
             // Use league_id as unique key, fallback to league name if no id
             const leagueKey = match.league_id ? `league_${match.league_id}` : (match.league || 'Unknown League');
-            if (!grouped[leagueKey]) grouped[leagueKey] = [];
+            if (!grouped[leagueKey]) {
+                grouped[leagueKey] = [];
+            }
             grouped[leagueKey].push(match);
         });
-        setGroupedMatches(grouped);
+
+        // Sort leagues: LIVE first, then by tier, then alphabetically
+        const sortedEntries = Object.entries(grouped).sort(([keyA, matchesA], [keyB, matchesB]) => {
+            const hasLiveA = matchesA.some(m => m.is_live);
+            const hasLiveB = matchesB.some(m => m.is_live);
+
+            // 1. Leagues with LIVE matches first
+            if (hasLiveA && !hasLiveB) return -1;
+            if (!hasLiveA && hasLiveB) return 1;
+
+            // 2. Sort by tier
+            const leagueNameA = matchesA[0]?.league || '';
+            const leagueNameB = matchesB[0]?.league || '';
+            const tierA = getLeagueTier(leagueNameA);
+            const tierB = getLeagueTier(leagueNameB);
+
+            if (tierA !== tierB) return tierA - tierB;
+
+            // 3. Alphabetically
+            return leagueNameA.localeCompare(leagueNameB);
+        });
+
+        // Convert back to object (maintains insertion order in modern JS)
+        const sortedGrouped = {};
+        sortedEntries.forEach(([key, matches]) => {
+            sortedGrouped[key] = matches;
+        });
+
+        setGroupedMatches(sortedGrouped);
     }, [filteredMatches]);
 
     // Request notification permission
@@ -429,7 +488,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
             <div className="flex items-center justify-between py-3 px-4 bg-white border-b border-gray-200">
                 <div className="flex items-center space-x-3">
                     <SimpleLeagueLogo
-                        leagueName={league}
+                        leagueName={firstMatch?.league || firstMatch?.league_name || league}
                         leagueId={firstMatch?.league_id}
                         logoUrl={firstMatch?.league_logo}
                         size="w-6 h-6"
@@ -621,7 +680,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                                         <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
                                             <div className="flex items-center space-x-3">
                                                 <SimpleLeagueLogo
-                                                    leagueName={league}
+                                                    leagueName={firstMatch?.league || firstMatch?.league_name || league}
                                                     leagueId={firstMatch?.league_id}
                                                     logoUrl={firstMatch?.league_logo}
                                                     size="w-6 h-6"
@@ -638,7 +697,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                                                         )}
                                                         <span>{displayCountry}</span>
                                                     </div>
-                                                    <div className="font-medium text-gray-800">{league}</div>
+                                                    <div className="font-medium text-gray-800">{firstMatch?.league || firstMatch?.league_name || league}</div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-2">
@@ -806,7 +865,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                                             <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b">
                                                 <div className="flex items-center space-x-3">
                                                     <SimpleLeagueLogo
-                                                        leagueName={league}
+                                                        leagueName={firstMatch?.league || firstMatch?.league_name || league}
                                                         leagueId={firstMatch?.league_id}
                                                         logoUrl={firstMatch?.league_logo}
                                                         size="w-6 h-6"
@@ -823,7 +882,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                                                             )}
                                                             <span>{displayCountry}</span>
                                                         </div>
-                                                        <div className="font-medium text-gray-800">{league}</div>
+                                                        <div className="font-medium text-gray-800">{firstMatch?.league || firstMatch?.league_name || league}</div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center space-x-3">
