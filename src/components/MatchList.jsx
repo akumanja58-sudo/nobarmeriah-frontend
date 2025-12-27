@@ -366,9 +366,28 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
             'La Liga 2', '2. Bundesliga', 'Ligue 2', 'MLS', 'Saudi Pro League', 'Super Lig'
         ];
 
-        const getLeagueTier = (leagueName) => {
+        const getLeagueTier = (leagueName, country = '') => {
             if (!leagueName) return 99;
             const name = leagueName.toLowerCase();
+            const countryLower = country.toLowerCase();
+
+            // Special handling for "Premier League" and "Liga 1" - check country
+            if (name === 'premier league') {
+                if (countryLower === 'england' || countryLower === 'world') return 1;
+                return 3; // Other countries' Premier League
+            }
+            if (name === 'liga 1' || name === 'bri liga 1') {
+                if (countryLower === 'indonesia') return 1;
+                return 3; // Other countries' Liga 1
+            }
+            if (name === 'ligue 1') {
+                if (countryLower === 'france') return 1;
+                return 3; // Other countries' Ligue 1
+            }
+            if (name === 'serie a') {
+                if (countryLower === 'italy' || countryLower === 'italia') return 1;
+                return 3;
+            }
 
             for (const league of TIER_1_LEAGUES) {
                 if (name.includes(league.toLowerCase())) return 1;
@@ -398,11 +417,13 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
             if (hasLiveA && !hasLiveB) return -1;
             if (!hasLiveA && hasLiveB) return 1;
 
-            // 2. Sort by tier
-            const leagueNameA = matchesA[0]?.league || '';
-            const leagueNameB = matchesB[0]?.league || '';
-            const tierA = getLeagueTier(leagueNameA);
-            const tierB = getLeagueTier(leagueNameB);
+            // 2. Sort by tier (check league_name first, then league for compatibility)
+            const leagueNameA = matchesA[0]?.league_name || matchesA[0]?.league || '';
+            const leagueNameB = matchesB[0]?.league_name || matchesB[0]?.league || '';
+            const countryA = matchesA[0]?.league_country || '';
+            const countryB = matchesB[0]?.league_country || '';
+            const tierA = getLeagueTier(leagueNameA, countryA);
+            const tierB = getLeagueTier(leagueNameB, countryB);
 
             if (tierA !== tierB) return tierA - tierB;
 
