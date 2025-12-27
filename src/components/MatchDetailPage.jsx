@@ -981,12 +981,12 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
     if (!liveMatchData) return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D] p-4 max-sm:p-0">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="max-w-7xl mx-auto px-4 py-4">
+        <div className="min-h-screen bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D] p-2 sm:p-4 overflow-x-hidden">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="max-w-7xl mx-auto px-0 sm:px-4 py-2 sm:py-4">
                 <MatchHeader />
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Mobile: Tabs + Content first, Desktop: Sidebar first */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-6">
+                    {/* Mobile: Tabs + Streaming FIRST, Desktop: Sidebar first */}
                     <div className="lg:col-span-3 order-1 lg:order-2">
                         <TabNavigation />
                         <AnimatePresence mode="wait">
@@ -995,7 +995,7 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                                     // Stream tab - no white background wrapper (memoized)
                                     streamTabContent
                                 ) : (
-                                    <div className="bg-white rounded-xl shadow-lg p-6">
+                                    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
                                         {activeTab === 'events' && <EventsTab />}
                                         {activeTab === 'stats' && <StatsTab />}
                                         {activeTab === 'lineups' && <LineupsTab />}
@@ -1006,7 +1006,7 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                         </AnimatePresence>
                     </div>
 
-                    {/* Sidebar - Mobile: after content, Desktop: before content */}
+                    {/* Sidebar - Mobile: AFTER streaming, Desktop: LEFT side */}
                     <div className="lg:col-span-1 order-2 lg:order-1">
                         <OddsSection />
                         <PredictionSection />
