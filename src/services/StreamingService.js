@@ -1,17 +1,24 @@
-// StreamingService.js - Fetch live streaming from SportSRC API
-// API Documentation: https://sportsrc.org/
-
-const SPORTSRC_BASE_URL = 'https://api.sportsrc.org';
+// StreamingService.js - Fetch live streaming via Backend Proxy (CORS fix)
+// Uses backend proxy to avoid CORS issues with SportSRC API
 
 class StreamingService {
     constructor() {
         this.cache = new Map();
         this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache
+
+        // Use backend proxy URL
+        let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+        baseUrl = baseUrl.replace(/\/+$/, '');
+        if (!baseUrl.endsWith('/api')) {
+            baseUrl = baseUrl + '/api';
+        }
+        this.backendUrl = baseUrl;
+
+        console.log('[StreamingService] Using backend proxy:', this.backendUrl);
     }
 
     /**
      * Normalize team name for matching
-     * Remove common suffixes and normalize spacing
      */
     normalizeTeamName(name) {
         if (!name) return '';
@@ -25,7 +32,7 @@ class StreamingService {
     }
 
     /**
-     * Calculate similarity between two strings (Levenshtein-based)
+     * Calculate similarity between two strings
      */
     similarity(str1, str2) {
         const s1 = this.normalizeTeamName(str1);
@@ -34,7 +41,6 @@ class StreamingService {
         if (s1 === s2) return 1;
         if (s1.includes(s2) || s2.includes(s1)) return 0.9;
 
-        // Simple word matching
         const words1 = s1.split(' ');
         const words2 = s2.split(' ');
         const commonWords = words1.filter(w => words2.includes(w));
@@ -43,7 +49,7 @@ class StreamingService {
     }
 
     /**
-     * Get all available football matches from SportSRC
+     * Get all available football matches from SportSRC (via backend proxy)
      */
     async getAvailableMatches() {
         try {
@@ -55,8 +61,8 @@ class StreamingService {
                 return cached.data;
             }
 
-            console.log('[StreamingService] Fetching matches from SportSRC...');
-            const response = await fetch(`${SPORTSRC_BASE_URL}/?data=matches&category=football`);
+            console.log('[StreamingService] Fetching matches via backend proxy...');
+            const response = await fetch(`${this.backendUrl}/streaming/matches?category=football`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -81,78 +87,51 @@ class StreamingService {
     }
 
     /**
-     * Find matching stream for a specific match
-     * @param {string} homeTeam - Home team name from API-Football
-     * @param {string} awayTeam - Away team name from API-Football
-     * @param {number} matchDate - Match timestamp (optional, for better matching)
+     * Find matching stream for a specific match (via backend proxy)
      */
     async findStream(homeTeam, awayTeam, matchDate = null) {
         try {
             console.log(`[StreamingService] Finding stream for: ${homeTeam} vs ${awayTeam}`);
 
-            const matches = await this.getAvailableMatches();
+            // Use backend search endpoint
+            const params = new URLSearchParams({
+                home: homeTeam,
+                away: awayTeam,
+                category: 'football'
+            });
 
-            if (!matches || matches.length === 0) {
-                return { success: false, error: 'No matches available' };
+            const response = await fetch(`${this.backendUrl}/streaming/search?${params}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
 
-            // Find best matching match
-            let bestMatch = null;
-            let bestScore = 0;
+            const result = await response.json();
 
-            for (const match of matches) {
-                const srcHome = match.teams?.home?.name || '';
-                const srcAway = match.teams?.away?.name || '';
+            if (result.success && result.match) {
+                console.log(`[StreamingService] Found match: ${result.match.title} (confidence: ${result.confidence?.toFixed(2)})`);
 
-                // Calculate similarity scores
-                const homeScore = this.similarity(homeTeam, srcHome);
-                const awayScore = this.similarity(awayTeam, srcAway);
-                const totalScore = (homeScore + awayScore) / 2;
-
-                // Check date if provided (within 2 hours)
-                let dateBonus = 0;
-                if (matchDate && match.date) {
-                    const timeDiff = Math.abs(matchDate - match.date);
-                    if (timeDiff < 2 * 60 * 60 * 1000) { // 2 hours
-                        dateBonus = 0.1;
-                    }
-                }
-
-                const finalScore = totalScore + dateBonus;
-
-                if (finalScore > bestScore && finalScore >= 0.6) {
-                    bestScore = finalScore;
-                    bestMatch = match;
-                }
-            }
-
-            if (bestMatch) {
-                console.log(`[StreamingService] Found match: ${bestMatch.title} (score: ${bestScore.toFixed(2)})`);
-
-                // Minimum confidence threshold - must be 95%+ to be considered valid
-                if (bestScore < 0.95) {
-                    console.log(`[StreamingService] Confidence too low (${(bestScore * 100).toFixed(0)}%), rejecting match`);
+                // Check confidence threshold (95%+)
+                if (result.confidence && result.confidence < 0.95) {
+                    console.log(`[StreamingService] Confidence too low (${(result.confidence * 100).toFixed(0)}%), rejecting match`);
                     return {
                         success: false,
                         error: 'No matching stream found',
-                        lowConfidenceMatch: bestMatch,
-                        confidence: bestScore
+                        lowConfidenceMatch: result.match,
+                        confidence: result.confidence
                     };
                 }
 
-                // Get stream details
-                const streamData = await this.getStreamDetails(bestMatch.id);
-
                 return {
                     success: true,
-                    match: bestMatch,
-                    stream: streamData,
-                    confidence: bestScore
+                    match: result.match,
+                    stream: result.stream,
+                    confidence: result.confidence
                 };
             }
 
             console.log('[StreamingService] No matching stream found');
-            return { success: false, error: 'No matching stream found' };
+            return { success: false, error: result.error || 'No matching stream found' };
 
         } catch (error) {
             console.error('[StreamingService] Error finding stream:', error);
@@ -161,8 +140,7 @@ class StreamingService {
     }
 
     /**
-     * Get stream details including embed URL
-     * @param {string} matchId - SportSRC match ID
+     * Get stream details including embed URL (via backend proxy)
      */
     async getStreamDetails(matchId) {
         try {
@@ -174,9 +152,7 @@ class StreamingService {
             }
 
             console.log(`[StreamingService] Fetching stream details for: ${matchId}`);
-            const response = await fetch(
-                `${SPORTSRC_BASE_URL}/?data=detail&category=football&id=${matchId}`
-            );
+            const response = await fetch(`${this.backendUrl}/streaming/details/${matchId}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
@@ -201,17 +177,14 @@ class StreamingService {
 
     /**
      * Get embed URL from stream data
-     * @param {object} streamData - Stream data from getStreamDetails
      */
     getEmbedUrl(streamData) {
         if (!streamData) return null;
 
-        // SportSRC returns embedUrl in sources array
         if (streamData.sources && streamData.sources.length > 0) {
             return streamData.sources[0].embedUrl || streamData.sources[0].embed || null;
         }
 
-        // Fallback to other possible fields
         const embed = streamData.embed ||
             streamData.embedUrl ||
             streamData.stream?.embed;
@@ -221,20 +194,18 @@ class StreamingService {
 
     /**
      * Get multiple stream sources if available
-     * @param {object} streamData - Stream data from getStreamDetails
      */
     getStreamSources(streamData) {
         if (!streamData) return [];
 
         const sources = [];
 
-        // SportSRC API structure: sources[].embedUrl
         if (streamData.sources && Array.isArray(streamData.sources)) {
             streamData.sources.forEach((source, idx) => {
                 sources.push({
                     id: source.streamNo || idx + 1,
                     name: source.source ? `Source ${source.streamNo || idx + 1}` : `Source ${idx + 1}`,
-                    embed: source.embedUrl || source.embed || source.url,  // embedUrl is the correct field!
+                    embed: source.embedUrl || source.embed || source.url,
                     quality: source.hd ? 'HD' : 'SD',
                     language: source.language || '',
                     viewers: source.viewers || 0
@@ -242,7 +213,6 @@ class StreamingService {
             });
         }
 
-        // Fallback to single embed
         if (sources.length === 0 && (streamData.embed || streamData.embedUrl)) {
             sources.push({
                 id: 1,
