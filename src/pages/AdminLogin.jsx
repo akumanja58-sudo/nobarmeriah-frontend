@@ -1,160 +1,185 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Shield, Loader2 } from 'lucide-react';
 
 const AdminLogin = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPass, setShowPass] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = async () => {
-        if (!email || !password) return alert('Lengkapi semua kolom!');
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (!email || !password) {
+            setError('Email dan password harus diisi!');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            console.log("🔐 Testing login with:", { email, password: "***" });
+            console.log("🔐 Attempting admin login...");
 
-            // 1. Login ke Supabase dengan debug
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: email.trim(), // Remove whitespace
+            // 1. Login ke Supabase
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: email.trim(),
                 password: password
             });
 
-            console.log("📊 Supabase response:", { data, error });
-
-            if (error) {
-                console.error("❌ Supabase error details:", error);
-                alert(`Supabase login failed: ${error.message}`);
+            if (authError) {
+                console.error("❌ Auth error:", authError);
+                setError(`Login gagal: ${authError.message}`);
                 return;
             }
 
             if (!data?.user) {
-                console.error("❌ No user data from Supabase");
-                alert('Login gagal: No user data returned');
+                setError('Login gagal: User tidak ditemukan');
                 return;
             }
 
-            console.log("✅ Supabase login success, user:", data.user.email);
+            console.log("✅ Supabase login success:", data.user.email);
 
-            // 2. Check admin profile (existing)
+            // 2. Check apakah user adalah admin
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('is_admin, username')
                 .eq('user_id', data.user.id)
                 .single();
 
-            console.log("🧠 Cek admin profile:", profile);
-
-            if (profileError || !profile?.is_admin) {
-                alert('Akses ditolak: kamu bukan admin!');
+            if (profileError) {
+                console.error("❌ Profile error:", profileError);
+                setError('Gagal mengambil data profile');
                 return;
             }
 
-            console.log("✅ Supabase login berhasil, getting backend JWT token...");
-
-            // 🆕 3. GET JWT TOKEN dari backend untuk API calls
-            try {
-                // 🔧 FIX: Hardcode URL dulu
-                const backendApiUrl = 'http://localhost:5000'; // Hardcode
-                console.log('🔗 Using backend URL:', backendApiUrl);
-
-                const backendLoginResponse = await fetch(`${backendApiUrl}/api/auth/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        username: 'Maureennn666', // Hardcode
-                        password: 'meriahku15M!' // Hardcode  
-                    })
-                });
-
-                console.log('📡 Backend response status:', backendLoginResponse.status);
-
-                if (!backendLoginResponse.ok) {
-                    throw new Error(`Backend login failed: ${backendLoginResponse.status}`);
-                }
-
-                const backendResult = await backendLoginResponse.json();
-                console.log("🎯 Backend login result:", backendResult);
-
-                if (backendResult.success && backendResult.token) {
-                    // 💾 SAVE ALL CREDENTIALS
-                    localStorage.setItem('admin_email', email);
-                    localStorage.setItem('admin_token', backendResult.token); // 🆕 JWT TOKEN
-                    localStorage.setItem('admin_username', profile.username || 'Maureennn666');
-                    localStorage.setItem('supabase_user_id', data.user.id);
-
-                    console.log('🎉 Dual authentication success!');
-                    console.log('✅ Supabase Auth: ✓');
-                    console.log('✅ Backend JWT: ✓');
-
-                    alert('🎉 Login berhasil! Admin Panel siap dengan monitoring.');
-                    navigate('/admin-panel');
-                } else {
-                    throw new Error('Backend login response invalid');
-                }
-            } catch (backendError) {
-                console.error('❌ Backend login failed:', backendError);
-
-                // Fallback - proceed with Supabase only
-                console.warn('⚠️ Proceeding with Supabase-only login (monitoring features disabled)');
-                localStorage.setItem('admin_email', email);
-                localStorage.setItem('admin_username', profile.username || 'admin');
-
-                alert('⚠️ Login berhasil, tapi beberapa fitur monitoring mungkin tidak tersedia.');
-                navigate('/admin-panel');
+            if (!profile?.is_admin) {
+                setError('Akses ditolak: Kamu bukan admin!');
+                // Logout user yang bukan admin
+                await supabase.auth.signOut();
+                return;
             }
 
+            console.log("✅ Admin verified:", profile.username);
+
+            // 3. Simpan info admin ke localStorage
+            localStorage.setItem('admin_email', data.user.email);
+            localStorage.setItem('admin_username', profile.username || 'Admin');
+            localStorage.setItem('admin_user_id', data.user.id);
+            localStorage.setItem('admin_logged_in', 'true');
+
+            console.log("🎉 Admin login success! Redirecting...");
+
+            // 4. Redirect ke admin panel
+            navigate('/admin-panel');
+
         } catch (err) {
-            console.error('❌ DUAL LOGIN ERROR:', err);
-            alert('Terjadi kesalahan saat login: ' + err.message);
+            console.error('❌ Login error:', err);
+            setError('Terjadi kesalahan: ' + err.message);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
-            <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm space-y-6">
-                <h2 className="text-2xl font-bold text-center text-gray-800">Login Admin</h2>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+            {/* Background decoration */}
+            <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+            </div>
 
-                <input
-                    type="email"
-                    placeholder="Email Admin"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-2 border rounded-lg"
-                />
-
-                <div className="relative">
-                    <input
-                        type={showPass ? 'text' : 'password'}
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full p-2 border rounded-lg pr-10"
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setShowPass(!showPass)}
-                        className="absolute top-1/2 right-2 transform -translate-y-1/2 text-gray-500"
-                    >
-                        {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
+            <div className="relative bg-white/10 backdrop-blur-xl p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20">
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl mb-4 shadow-lg">
+                        <Shield className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Admin Login</h2>
+                    <p className="text-gray-400 text-sm">Masuk ke dashboard admin</p>
                 </div>
 
-                <button
-                    onClick={handleLogin}
-                    disabled={loading}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white w-full py-2 rounded-xl font-semibold"
-                >
-                    {loading ? 'Memproses...' : 'Login'}
-                </button>
+                {/* Error message */}
+                {error && (
+                    <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-xl mb-6 text-sm">
+                        ⚠️ {error}
+                    </div>
+                )}
+
+                {/* Login form */}
+                <form onSubmit={handleLogin} className="space-y-5">
+                    {/* Email input */}
+                    <div>
+                        <label className="block text-gray-300 text-sm font-medium mb-2">
+                            Email Admin
+                        </label>
+                        <input
+                            type="email"
+                            placeholder="admin@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {/* Password input */}
+                    <div>
+                        <label className="block text-gray-300 text-sm font-medium mb-2">
+                            Password
+                        </label>
+                        <div className="relative">
+                            <input
+                                type={showPass ? 'text' : 'password'}
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all pr-12"
+                                disabled={loading}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPass(!showPass)}
+                                className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Submit button */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 shadow-lg"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span>Memproses...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Shield className="w-5 h-5" />
+                                <span>Login Admin</span>
+                            </>
+                        )}
+                    </button>
+                </form>
+
+                {/* Footer */}
+                <div className="mt-6 text-center">
+                    <a
+                        href="/"
+                        className="text-gray-400 hover:text-white text-sm transition-colors"
+                    >
+                        ← Kembali ke Home
+                    </a>
+                </div>
             </div>
         </div>
     );
