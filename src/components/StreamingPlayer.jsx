@@ -121,11 +121,25 @@ const StreamingPlayer = ({
                 matchDate ? new Date(matchDate).getTime() : null
             );
 
-            if (result.success) {
-                setStreamData(result);
+            if (result.success && result.match) {
+                // Fetch stream details to get embed URLs
+                const matchId = result.match.id;
+                console.log('[StreamingPlayer] Found match, fetching details for:', matchId);
 
-                // Get available sources
-                const streamSources = streamingService.getStreamSources(result.stream);
+                const streamDetails = await streamingService.getStreamDetails(matchId);
+                console.log('[StreamingPlayer] Stream details:', streamDetails);
+
+                // Merge stream details into result
+                const fullResult = {
+                    ...result,
+                    stream: streamDetails
+                };
+
+                setStreamData(fullResult);
+
+                // Get available sources from stream details
+                const streamSources = streamingService.getStreamSources(streamDetails);
+                console.log('[StreamingPlayer] Sources found:', streamSources.length);
                 setSources(streamSources);
 
                 if (streamSources.length > 0) {
