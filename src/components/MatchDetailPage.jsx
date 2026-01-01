@@ -192,7 +192,7 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                     {isConnected ? (
                         <div className="flex items-center gap-1">
                             <Wifi className="w-3 h-3 text-green-500" />
-                            <span className="text-xs text-green-600 hidden sm:inline">API Football</span>
+                            <span className="text-xs text-green-600 hidden sm:inline">via NobarMeriah</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1">
@@ -711,7 +711,7 @@ const MatchDetailPage = ({ user, username, match: initialMatch, goBack, onAuthRe
                     {isLive && <div className="flex justify-between items-center"><span className="text-gray-600">Status:</span><span className="font-condensed text-red-600">🔴 Live</span></div>}
                     <div className="flex justify-between items-center">
                         <span className="text-gray-600">Data Source:</span>
-                        <span className={`font-condensed ${isConnected ? 'text-green-600' : 'text-red-600'}`}>{isConnected ? '🟢 API Football' : '🔴 Offline'}</span>
+                        <span className={`font-condensed ${isConnected ? 'text-green-600' : 'text-red-600'}`}>{isConnected ? '🟢 via NobarMeriah' : '🔴 Offline'}</span>
                     </div>
                 </div>
             </div>

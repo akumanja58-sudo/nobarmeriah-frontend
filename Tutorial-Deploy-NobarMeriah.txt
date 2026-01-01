@@ -237,7 +237,7 @@ BACKEND  → Push ke GitHub → Railway auto deploy
                            TROUBLESHOOTING
 ================================================================================
 
-PROBLEM: "Cannot connect to API Football server" / Offline
+PROBLEM: "Cannot connect to via NobarMeriah server" / Offline
 SOLUTION: 
 - Cek CORS_ORIGINS di Railway sudah include domain frontend
 - Format: https://domain.com (tanpa trailing slash)

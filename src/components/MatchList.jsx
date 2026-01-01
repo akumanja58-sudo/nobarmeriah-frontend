@@ -550,7 +550,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                 <div className="flex items-center space-x-2">
                     <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                     <span className="text-sm text-gray-700">
-                        {connected ? 'API Football' : 'Offline'}
+                        {connected ? 'via NobarMeriah' : 'Offline'}
                     </span>
 
                     {liveMatchesCount > 0 && (
@@ -856,7 +856,7 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                                 {lastUpdated && (
                                     <div className="text-sm">
                                         Last updated: {lastUpdated.toLocaleTimeString()}
-                                        {connected && <span className="ml-2 text-green-600">• Live from API Football</span>}
+                                        {connected && <span className="ml-2 text-green-600">• Live from NobarMeriah</span>}
                                     </div>
                                 )}
                             </div>
@@ -944,8 +944,8 @@ const CleanMatchList = ({ user, username, onAuthRequired }) => {
                                     <h3 className="text-xl text-gray-600 mb-3">No matches found</h3>
                                     <p className="text-gray-500 mb-8 max-w-md mx-auto">
                                         {connected
-                                            ? 'API Football connected but no match data available today'
-                                            : 'Cannot connect to API Football server'
+                                            ? 'via NobarMeriah connected but no match data available today'
+                                            : 'Cannot connect to via NobarMeriah server'
                                         }
                                     </p>
                                     <button

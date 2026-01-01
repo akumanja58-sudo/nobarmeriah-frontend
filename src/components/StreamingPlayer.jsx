@@ -263,7 +263,7 @@ const StreamingPlayer = ({
                             <Timer className="w-4 h-4" />
                             <span>Menunggu kickoff...</span>
                         </div>
-                        <span className="text-xs text-gray-500">SportSRC</span>
+                        <span className="text-xs text-gray-500">NobarMeriah Stream</span>
                     </div>
                 </div>
             </div>
@@ -591,7 +591,7 @@ const StreamingPlayer = ({
                     <div className="flex items-center gap-4 text-gray-400">
                         <span className="flex items-center gap-1">
                             <MonitorPlay className="w-4 h-4" />
-                            SportSRC
+                            NobarMeriah Stream
                         </span>
                         {sources[selectedSource]?.quality && (
                             <span className="flex items-center gap-1">

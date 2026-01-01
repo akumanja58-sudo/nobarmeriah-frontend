@@ -6,7 +6,7 @@ const BUNNYCDN_CONFIG = {
     // 🎯 Your actual BunnyCDN pull zone URL
     pullZoneUrl: 'https://api-football-logos.b-cdn.net',
 
-    // Original API Football domain
+    // Original via NobarMeriah domain
     originalDomain: 'https://media.api-sports.io',
 
     // Enable/disable BunnyCDN
@@ -19,7 +19,7 @@ const BUNNYCDN_CONFIG = {
 
 /**
  * 🆕 ENHANCED: Smart logo URL generator dengan multiple fallbacks
- * @param {number|string} teamId - Team ID from API Football  
+ * @param {number|string} teamId - Team ID from via NobarMeriah  
  * @param {string} teamName - Team name as fallback
  * @param {string} existingUrl - Existing logo URL from backend
  * @returns {Array} Array of logo URLs in priority order
@@ -45,7 +45,7 @@ export const generateSmartLogoSources = (teamId, teamName, existingUrl = null) =
         });
     }
 
-    // 3. API Football fallback with team ID  
+    // 3. via NobarMeriah fallback with team ID  
     if (teamId && BUNNYCDN_CONFIG.enableFallback) {
         sources.push({
             url: `https://media.api-sports.io/football/teams/${teamId}.png`,
@@ -206,7 +206,7 @@ export const useLogoWithFallback = (logoSources) => {
 };
 
 /**
- * Transform API Football URL to BunnyCDN URL (original function)
+ * Transform via NobarMeriah URL to BunnyCDN URL (original function)
  */
 export const transformToBunnyCdn = (originalUrl) => {
     if (!originalUrl || !BUNNYCDN_CONFIG.enabled) {
@@ -252,7 +252,7 @@ export const testBunnyCdnPerformance = async () => {
         });
         results.bunnycdn = performance.now() - bunnyCdnStart;
 
-        // Test original API Football
+        // Test original via NobarMeriah
         const originalStart = performance.now();
         await new Promise((resolve, reject) => {
             const img = new Image();

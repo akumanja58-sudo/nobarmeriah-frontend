@@ -435,7 +435,7 @@ const ImprovedMatchLayout = ({ user, username, match, goBack, onAuthRequired, is
                     {isConnected ? (
                         <div className="flex items-center gap-1">
                             <Wifi className="w-3 h-3 text-green-500" />
-                            <span className="text-xs text-green-600 hidden sm:inline">API Football</span>
+                            <span className="text-xs text-green-600 hidden sm:inline">via NobarMeriah</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1">
@@ -716,7 +716,7 @@ const ImprovedMatchLayout = ({ user, username, match, goBack, onAuthRequired, is
                         >
                             <div className="flex items-center gap-1 sm:gap-2 text-xs text-yellow-700">
                                 <WifiOff className="w-3 h-3" />
-                                <span>Connection lost - reconnecting to API Football...</span>
+                                <span>Connection lost - reconnecting to via NobarMeriah...</span>
                             </div>
                         </motion.div>
                     )}
@@ -1322,7 +1322,7 @@ const ImprovedMatchLayout = ({ user, username, match, goBack, onAuthRequired, is
                     <div className="flex justify-between items-center">
                         <span className="text-gray-600">Data Source:</span>
                         <span className={`font-condensed ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                            {isConnected ? '🟢 API Football' : '🔴 Offline'}
+                            {isConnected ? '🟢 via NobarMeriah' : '🔴 Offline'}
                         </span>
                     </div>
                 </div>
@@ -1420,9 +1420,9 @@ const ImprovedMatchLayout = ({ user, username, match, goBack, onAuthRequired, is
                                         {activeTab === 'lineups' && 'Team Lineups'}
                                         {activeTab === 'standing' && 'League Standings'}
                                     </h3>
-                                    <p className="text-gray-600">Real data from API Football</p>
+                                    <p className="text-gray-600">Real data from via NobarMeriah</p>
                                     <p className="text-sm text-green-600 mt-2">
-                                        {isConnected ? 'Connected to API Football' : 'Connecting...'}
+                                        {isConnected ? 'Connected to via NobarMeriah' : 'Connecting...'}
                                     </p>
                                 </div>
                             </div>

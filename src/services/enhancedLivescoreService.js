@@ -620,7 +620,7 @@ class EnhancedLivescoreService {
     }
 
     formatStatus(status, elapsed = 0) {
-        // Mapping status API Football ke format simple
+        // Mapping status via NobarMeriah ke format simple
         const statusMap = {
             'Not Started': 'Belum Dimulai',
             'First Half': `${elapsed}'`, // Show minutes untuk babak pertama
@@ -764,7 +764,7 @@ class EnhancedLivescoreService {
             }
 
             if (response.success && response.response) {
-                // Transform API Football data to match expected format
+                // Transform via NobarMeriah data to match expected format
                 const transformedMatches = response.response.map(match =>
                     this.transformMatchData(match)
                 ).filter(Boolean);

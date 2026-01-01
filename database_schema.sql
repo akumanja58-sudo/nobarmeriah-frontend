@@ -1,5 +1,5 @@
 -- database_schema.sql - Complete Database Schema for Auto Football System
--- Following API Football Flow: Seasons → Countries → Leagues → Fixtures → Live/Players/Teams
+-- Following via NobarMeriah Flow: Seasons → Countries → Leagues → Fixtures → Live/Players/Teams
 
 -- ============= TRACKED LEAGUES TABLE =============
 CREATE TABLE IF NOT EXISTS tracked_leagues (
@@ -720,9 +720,9 @@ $ LANGUAGE plpgsql;
 
 -- ============= COMMENTS FOR DOCUMENTATION =============
 COMMENT ON TABLE tracked_leagues IS 'Leagues being monitored by the auto fixtures system';
-COMMENT ON TABLE matches IS 'Football matches with API Football integration';
-COMMENT ON TABLE teams IS 'Team information from API Football';
-COMMENT ON TABLE players IS 'Player information from API Football';
+COMMENT ON TABLE matches IS 'Football matches with via NobarMeriah integration';
+COMMENT ON TABLE teams IS 'Team information from via NobarMeriah';
+COMMENT ON TABLE players IS 'Player information from via NobarMeriah';
 COMMENT ON TABLE standings IS 'League standings/table positions';
 COMMENT ON TABLE match_statistics IS 'Detailed match statistics';
 COMMENT ON TABLE match_events IS 'Match events (goals, cards, substitutions)';
