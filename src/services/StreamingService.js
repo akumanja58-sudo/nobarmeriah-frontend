@@ -161,11 +161,18 @@ class StreamingService {
             const result = await response.json();
 
             if (result.success && result.data) {
+                // Handle double nested response from backend
+                // Could be: { data: { data: {...} } } or { data: {...} }
+                let streamData = result.data;
+                if (streamData.success && streamData.data) {
+                    streamData = streamData.data;
+                }
+
                 this.cache.set(cacheKey, {
-                    data: result.data,
+                    data: streamData,
                     timestamp: Date.now()
                 });
-                return result.data;
+                return streamData;
             }
 
             return null;
