@@ -153,6 +153,7 @@ const Auth = () => {
     // Google Login Function - FIXED for SSR
     const handleGoogleLogin = async () => {
         if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined') return;
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -709,3 +710,4 @@ const Auth = () => {
 };
 
 export default Auth;
+
