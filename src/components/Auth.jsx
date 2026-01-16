@@ -1,12 +1,22 @@
-import React, { useState, useEffect } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '@/utils/supabaseClient';
 
 const Auth = () => {
     const router = useRouter();
     const [activeForm, setActiveForm] = useState('login'); // 'login', 'register'
+    const [mounted, setMounted] = useState(false);
+
+    // Set mounted state after component mounts (client-side only)
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const getDeviceInfo = () => {
+        if (typeof window === 'undefined') return 'Unknown';
+
         const ua = navigator.userAgent;
         let browser = "Unknown";
         let os = "Unknown";
@@ -28,60 +38,28 @@ const Auth = () => {
     const checkSession = async (email) => {
         try {
             console.log('🔍 DETAILED: Checking active session for:', email);
-            console.log('🔍 Email lowercase:', email.toLowerCase());
 
-            // Query dengan debugging lebih detail
             const { data: existingSession, error, count } = await supabase
                 .from('active_sessions')
                 .select('*', { count: 'exact' })
                 .eq('account_email', email.toLowerCase())
                 .order('login_time', { ascending: false });
 
-            console.log('📊 Query result:', {
-                data: existingSession,
-                error: error,
-                count: count,
-                totalRecords: existingSession?.length || 0
-            });
-
             if (error) {
                 console.error('❌ Database error:', error);
-                return false; // Kalau error, allow login
+                return false;
             }
-
-            // Debug: Tampilkan semua records di table
-            const { data: allSessions } = await supabase
-                .from('active_sessions')
-                .select('*');
-            console.log('🗂️ ALL sessions in table:', allSessions);
 
             if (!existingSession || existingSession.length === 0) {
                 console.log('✅ No active session found for this email - ALLOW LOGIN');
                 return false;
             }
 
-            // Ada session ditemukan
             const session = existingSession[0];
-            console.log('🚨 ACTIVE SESSION FOUND:', {
-                email: session.account_email,
-                userId: session.current_user_id,
-                device: session.device_info,
-                loginTime: session.login_time,
-                lastActivity: session.last_activity
-            });
-
-            // Optional: Check if session expired (24 hours)
             const loginTime = new Date(session.login_time);
             const now = new Date();
             const sessionDuration = 24 * 60 * 60 * 1000; // 24 jam
             const isExpired = (now - loginTime) > sessionDuration;
-
-            console.log('⏰ Session time check:', {
-                loginTime: loginTime.toISOString(),
-                now: now.toISOString(),
-                ageInHours: Math.round((now - loginTime) / (1000 * 60 * 60)),
-                isExpired: isExpired
-            });
 
             if (isExpired) {
                 console.log('⏰ Session expired, cleaning up and ALLOW LOGIN');
@@ -105,17 +83,11 @@ const Auth = () => {
         try {
             console.log('💾 Creating session for:', email, 'userId:', userId);
 
-            // 1. HAPUS semua session lama untuk email ini
-            console.log('🗑️ Deleting old sessions for:', email);
-            const { error: deleteError, count: deletedCount } = await supabase
+            await supabase
                 .from('active_sessions')
-                .delete({ count: 'exact' })
+                .delete()
                 .eq('account_email', email.toLowerCase());
 
-            console.log('🗑️ Deleted sessions:', { error: deleteError, count: deletedCount });
-
-            // 2. Buat session baru
-            console.log('➕ Creating new session...');
             const newSession = {
                 account_email: email.toLowerCase(),
                 current_user_id: userId,
@@ -124,8 +96,6 @@ const Auth = () => {
                 login_time: new Date().toISOString(),
                 last_activity: new Date().toISOString()
             };
-
-            console.log('📝 New session data:', newSession);
 
             const { data: insertedData, error: insertError } = await supabase
                 .from('active_sessions')
@@ -142,28 +112,6 @@ const Auth = () => {
 
         } catch (err) {
             console.error('💥 Session creation unexpected error:', err);
-            return false;
-        }
-    };
-
-    const clearUserSession = async (email) => {
-        try {
-            console.log('🧹 Clearing session for:', email);
-
-            const { error } = await supabase
-                .from('active_sessions')
-                .delete()
-                .eq('account_email', email.toLowerCase());
-
-            if (error) {
-                console.error('❌ Error clearing session:', error);
-                return false;
-            }
-
-            console.log('✅ Session cleared successfully');
-            return true;
-        } catch (err) {
-            console.error('💥 Clear session error:', err);
             return false;
         }
     };
@@ -191,7 +139,7 @@ const Auth = () => {
         successMsg: ''
     });
 
-    // Loading states for login, register, and reset
+    // Loading states
     const [isLoadingLogin, setIsLoadingLogin] = useState(false);
     const [isLoadingRegister, setIsLoadingRegister] = useState(false);
     const [isLoadingReset, setIsLoadingReset] = useState(false);
@@ -202,8 +150,10 @@ const Auth = () => {
     // Flag to prevent auto redirect during registration
     const [isRegistering, setIsRegistering] = useState(false);
 
-    // Google Login Function
+    // Google Login Function - FIXED for SSR
     const handleGoogleLogin = async () => {
+        if (typeof window === 'undefined') return;
+
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -211,7 +161,7 @@ const Auth = () => {
             },
         });
         if (error) console.error('Google login error:', error.message);
-        else window.location.href = data?.url;
+        else if (data?.url) window.location.href = data.url;
     };
 
     // Back to Home function
@@ -219,7 +169,7 @@ const Auth = () => {
         router.push('/');
     };
 
-    // UPDATE handleLogin dengan Single Session Protection
+    // Login Handler
     const handleLogin = async (e) => {
         e.preventDefault();
         console.log('🚀 SIMPLE: Login started');
@@ -228,7 +178,6 @@ const Auth = () => {
         setLoginData(prev => ({ ...prev, errorMsg: '' }));
 
         try {
-            // 1. Get email from username
             const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('email')
@@ -244,9 +193,7 @@ const Auth = () => {
             const email = profile.email;
             console.log('Found email:', email);
 
-            // 2. Check session (simple - always return false for now)
             const sessionExists = await checkSession(email);
-            console.log('checkSession result:', sessionExists);
 
             if (sessionExists) {
                 setLoginData(prev => ({
@@ -257,7 +204,6 @@ const Auth = () => {
                 return;
             }
 
-            // 3. Auth login
             const { data: authData, error: loginError } = await supabase.auth.signInWithPassword({
                 email: email,
                 password: loginData.password,
@@ -269,10 +215,7 @@ const Auth = () => {
                 return;
             }
 
-            // 4. Create session
             await createUserSession(email, authData.user.id);
-
-            // 5. Redirect to home (bukan dashboard)
             router.push('/');
 
         } catch (error) {
@@ -293,20 +236,16 @@ const Auth = () => {
         setIsRegistering(true);
         setRegisterData(prev => ({ ...prev, errorMsg: '', successMsg: '' }));
 
-        // Soccer ball loading for 3 seconds
         setTimeout(async () => {
             if (registerData.password !== registerData.confirmPassword) {
-                console.log('❌ Password mismatch');
                 setRegisterData(prev => ({ ...prev, errorMsg: 'Password harus sama' }));
                 setIsLoadingRegister(false);
                 setIsRegistering(false);
                 return;
             }
 
-            console.log('✅ Password match, checking email, username & phone...');
-
             try {
-                // ✅ CHECK EMAIL DULU
+                // CHECK EMAIL
                 const { data: existingEmails } = await supabase
                     .from('profiles')
                     .select('email')
@@ -319,7 +258,7 @@ const Auth = () => {
                     return;
                 }
 
-                // ✅ CHECK USERNAME
+                // CHECK USERNAME
                 const { data: existingUsers } = await supabase
                     .from('profiles')
                     .select('username')
@@ -332,7 +271,7 @@ const Auth = () => {
                     return;
                 }
 
-                // ✅ CHECK PHONE
+                // CHECK PHONE
                 const { data: existingPhones } = await supabase
                     .from('profiles')
                     .select('phone')
@@ -345,21 +284,16 @@ const Auth = () => {
                     return;
                 }
 
-                console.log('✅ All checks passed, signing up...');
-
-                // ✅ SIGNUP ke Supabase Auth
+                // SIGNUP
                 const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                     email: registerData.email,
                     password: registerData.password,
                     options: {
-                        emailRedirectTo: undefined, // Disable email redirect
+                        emailRedirectTo: undefined,
                     }
                 });
 
                 if (signUpError) {
-                    console.error("❌ Signup gagal:", signUpError.message);
-
-                    // Handle specific error: email already registered in Auth
                     if (signUpError.message.includes('already registered')) {
                         setRegisterData(prev => ({ ...prev, errorMsg: 'Email sudah terdaftar di sistem' }));
                     } else {
@@ -370,13 +304,7 @@ const Auth = () => {
                     return;
                 }
 
-                console.log('✅ Signup success:', signUpData);
-
-                // ✅ LANGSUNG INSERT ke profiles (tanpa getUser/getSession)
-                // Ambil user_id dari response signup
                 const userId = signUpData?.user?.id;
-
-                console.log('✅ Inserting profile with user_id:', userId);
 
                 const { error: insertError } = await supabase.from('profiles').insert({
                     user_id: userId,
@@ -391,7 +319,6 @@ const Auth = () => {
                 });
 
                 if (insertError) {
-                    console.error("❌ Error insert profile:", insertError.message);
                     setRegisterData(prev => ({
                         ...prev,
                         errorMsg: 'Gagal simpan profil: ' + insertError.message
@@ -401,12 +328,8 @@ const Auth = () => {
                     return;
                 }
 
-                console.log("✅ Profile inserted successfully!");
-
-                // Sign out user after registration
                 await supabase.auth.signOut();
 
-                // Reset form data
                 setRegisterData({
                     email: '',
                     username: '',
@@ -423,12 +346,9 @@ const Auth = () => {
 
                 setIsLoadingRegister(false);
                 setIsRegistering(false);
-
-                // Show success popup
                 setShowSuccessPopup(true);
 
             } catch (error) {
-                console.log('❌ Error:', error);
                 setRegisterData(prev => ({ ...prev, errorMsg: 'Terjadi kesalahan: ' + error.message }));
                 setIsLoadingRegister(false);
                 setIsRegistering(false);
@@ -437,48 +357,48 @@ const Auth = () => {
         }, 3000);
     };
 
-    // Handle success popup close and redirect to login with smooth animation
     const handleSuccessPopupClose = () => {
         setShowSuccessPopup(false);
-
-        // Add smooth transition delay before switching to login form
         setTimeout(() => {
             setActiveForm('login');
-        }, 300); // Small delay for smooth transition
+        }, 300);
     };
 
-    // Function to handle smooth navigation to reset password page
     const handleForgotPassword = () => {
         setIsLoadingReset(true);
-
-        // Soccer ball loading for 5 seconds with smooth transition
         setTimeout(() => {
             setIsLoadingReset(false);
             router.push('/reset-password');
-        }, 5000);
+        }, 2000);
     };
 
-    // Auth State Check - Redirect jika sudah login
+    // Auth State Check
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+
         supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session && window.location.pathname !== '/recovery') {
-                router.push('/'); // Redirect ke home, bukan dashboard
+            if (session) {
+                router.push('/');
             }
         });
 
         const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session && window.location.pathname !== '/recovery' && !isRegistering) {
-                const { user } = session;
-                await supabase.from('profiles').upsert({
-                    user_id: user.id,
-                    email: user.email,
-                });
-                router.push('/'); // Redirect ke home, bukan dashboard
+            if (session && !isRegistering) {
+                router.push('/');
             }
         });
 
         return () => listener?.subscription?.unsubscribe();
-    }, [location, isRegistering]);
+    }, [isRegistering, router]);
+
+    // Don't render until mounted (prevents hydration mismatch)
+    if (!mounted) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D] p-4 max-sm:p-0">
@@ -491,61 +411,35 @@ const Auth = () => {
                 ← Kembali ke Home
             </button>
 
-            {/* Success Popup - Bounce once + animated checkmark */}
+            {/* Success Popup */}
             {showSuccessPopup && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-all duration-300">
-                    <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm mx-4 transform"
-                        style={{
-                            animation: 'bounceOnce 0.6s ease-out'
-                        }}>
-                        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4 relative overflow-hidden">
+                    <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm mx-4 transform animate-bounce">
+                        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4">
                             <svg
                                 className="w-8 h-8 text-white"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
-                                style={{
-                                    animation: 'checkmarkDraw 0.8s ease-out 0.3s both'
-                                }}
                             >
                                 <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     strokeWidth="3"
                                     d="M5 13l4 4L19 7"
-                                    style={{
-                                        strokeDasharray: '20',
-                                        strokeDashoffset: '20',
-                                        animation: 'drawPath 0.8s ease-out 0.3s forwards'
-                                    }}
                                 />
                             </svg>
-                            {/* Ripple effect */}
-                            <div className="absolute inset-0 bg-green-400 rounded-full"
-                                style={{
-                                    animation: 'ripple 0.6s ease-out 0.2s'
-                                }}>
-                            </div>
                         </div>
-                        <h3 className="text-xl font-condensed text-gray-800 mb-2 text-center"
-                            style={{
-                                animation: 'fadeInUp 0.5s ease-out 0.4s both'
-                            }}>
+                        <h3 className="text-xl font-condensed text-gray-800 mb-2 text-center">
                             🎉 Selamat!
                         </h3>
-                        <p className="text-gray-600 text-center mb-6"
-                            style={{
-                                animation: 'fadeInUp 0.5s ease-out 0.5s both'
-                            }}>
+                        <p className="text-gray-600 text-center mb-6">
                             Akun sudah terdaftar.<br />
                             Silahkan login untuk melanjutkan.
                         </p>
                         <button
                             onClick={handleSuccessPopupClose}
                             className="w-full bg-[#16A34A] hover:bg-[#15803D] text-white font-condensed py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
-                            style={{
-                                animation: 'fadeInUp 0.5s ease-out 0.6s both'
-                            }}
                         >
                             Login Sekarang
                         </button>
@@ -553,178 +447,12 @@ const Auth = () => {
                 </div>
             )}
 
-            {/* Custom CSS untuk animasi smooth */}
-            <style jsx>{`
-                @keyframes bounceOnce {
-                    0% {
-                        transform: scale(0.3) translateY(-100px);
-                        opacity: 0;
-                    }
-                    50% {
-                        transform: scale(1.05) translateY(0);
-                    }
-                    70% {
-                        transform: scale(0.95);
-                    }
-                    100% {
-                        transform: scale(1);
-                        opacity: 1;
-                    }
-                }
-
-                @keyframes drawPath {
-                    to {
-                        stroke-dashoffset: 0;
-                    }
-                }
-
-                @keyframes checkmarkDraw {
-                    0% {
-                        transform: scale(0);
-                    }
-                    100% {
-                        transform: scale(1);
-                    }
-                }
-
-                @keyframes ripple {
-                    0% {
-                        transform: scale(0.8);
-                        opacity: 0.8;
-                    }
-                    100% {
-                        transform: scale(1.2);
-                        opacity: 0;
-                    }
-                }
-
-                @keyframes fadeInUp {
-                    0% {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    100% {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-            `}</style>
-
-            {/* Soccer Ball Loading Overlay */}
+            {/* Loading Overlay */}
             {(isLoadingReset || isLoadingLogin || isLoadingRegister) && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-all duration-300">
                     <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-2xl">
                         <div className="mb-4">
-                            <svg className="w-20 h-20" viewBox="0 0 56 56" role="img" aria-label="Soccer ball loading">
-                                <defs>
-                                    <path id="hex" d="M 0 -9.196 L 8 -4.577 L 8 4.661 L 0 9.28 L -8 4.661 L -8 -4.577 Z" />
-                                    <g id="hex-chunk" fill="none" stroke="#374151" strokeWidth="0.5">
-                                        <use href="#hex" fill="#374151" />
-                                        <use href="#hex" transform="translate(16,0)" />
-                                        <use href="#hex" transform="rotate(60) translate(16,0)" />
-                                    </g>
-                                    <g id="hex-pattern" transform="scale(0.333)">
-                                        <use href="#hex-chunk" />
-                                        <use href="#hex-chunk" transform="rotate(30) translate(0,48) rotate(-30)" />
-                                        <use href="#hex-chunk" transform="rotate(-180) translate(0,27.7) rotate(180)" />
-                                        <use href="#hex-chunk" transform="rotate(-120) translate(0,27.7) rotate(120)" />
-                                        <use href="#hex-chunk" transform="rotate(-60) translate(0,27.7) rotate(60)" />
-                                        <use href="#hex-chunk" transform="translate(0,27.7)" />
-                                        <use href="#hex-chunk" transform="rotate(60) translate(0,27.7) rotate(-60)" />
-                                        <use href="#hex-chunk" transform="rotate(120) translate(0,27.7) rotate(-120)" />
-                                    </g>
-                                    <g id="ball-texture" transform="translate(0,-3.5)">
-                                        <use href="#hex-pattern" transform="translate(-48,0)" />
-                                        <use href="#hex-pattern" transform="translate(-32,0)" />
-                                        <use href="#hex-pattern" transform="translate(-16,0)" />
-                                        <use href="#hex-pattern" transform="translate(0,0)" />
-                                        <use href="#hex-pattern" transform="translate(16,0)" />
-                                    </g>
-                                    <clipPath id="ball-clip">
-                                        <circle r="8" />
-                                    </clipPath>
-                                </defs>
-
-                                <g transform="translate(28,28)">
-                                    {/* Dots */}
-                                    <g fill="#dc2626">
-                                        {[32, 87, 103, 138, 228, 243, 328].map((angle, i) => (
-                                            <circle
-                                                key={`red-${i}`}
-                                                r="1.25"
-                                                transform={`rotate(${angle}) translate(-18.25,0)`}
-                                                className="animate-pulse"
-                                                style={{
-                                                    animationDelay: `${i * 0.2}s`,
-                                                    animationDuration: '2s'
-                                                }}
-                                            />
-                                        ))}
-                                    </g>
-                                    <g fill="#ffffff">
-                                        {[41, 77, 92, 146, 175, 293, 314, 340].map((angle, i) => (
-                                            <circle
-                                                key={`white-${i}`}
-                                                r="1.25"
-                                                transform={`rotate(${angle}) translate(-15.75,0)`}
-                                                className="animate-pulse"
-                                                style={{
-                                                    animationDelay: `${i * 0.15}s`,
-                                                    animationDuration: '2.5s'
-                                                }}
-                                            />
-                                        ))}
-                                    </g>
-                                    <g fill="#2563eb">
-                                        {[20, 55, 77, 106, 128, 174, 279].map((angle, i) => (
-                                            <circle
-                                                key={`blue-${i}`}
-                                                r="1.25"
-                                                transform={`rotate(${angle}) translate(-13.25,0)`}
-                                                className="animate-pulse"
-                                                style={{
-                                                    animationDelay: `${i * 0.25}s`,
-                                                    animationDuration: '3s'
-                                                }}
-                                            />
-                                        ))}
-                                    </g>
-
-                                    {/* Rotating Rings */}
-                                    <g fill="none" strokeLinecap="round" strokeWidth="2.5" transform="rotate(-90)">
-                                        <circle
-                                            r="18.25"
-                                            stroke="#dc2626"
-                                            strokeDasharray="57.35 57.35"
-                                            className="animate-spin"
-                                            style={{ animationDuration: '3s' }}
-                                        />
-                                        <circle
-                                            r="15.75"
-                                            stroke="#ffffff"
-                                            strokeDasharray="53.4 53.4"
-                                            className="animate-spin"
-                                            style={{ animationDuration: '2.5s', animationDirection: 'reverse' }}
-                                        />
-                                        <circle
-                                            r="13.25"
-                                            stroke="#2563eb"
-                                            strokeDasharray="49.5 49.5"
-                                            className="animate-spin"
-                                            style={{ animationDuration: '2s' }}
-                                        />
-                                    </g>
-
-                                    {/* Main Ball */}
-                                    <g transform="translate(0,-15.75)" className="animate-spin" style={{ animationDuration: '4s' }}>
-                                        <circle fill="#f3f4f6" r="8" cx="0.5" cy="0.5" opacity="0.3" />
-                                        <circle fill="#ffffff" r="8" />
-                                        <g clipPath="url(#ball-clip)">
-                                            <use href="#ball-texture" className="animate-pulse" />
-                                        </g>
-                                    </g>
-                                </g>
-                            </svg>
+                            <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                         </div>
                         <h3 className="text-lg font-condensed text-gray-800 mb-2">
                             {isLoadingLogin && "Sedang Login"}
@@ -745,10 +473,9 @@ const Auth = () => {
                 </div>
             )}
 
-            <div className={`relative w-full max-w-4xl h-[600px] max-sm:h-[calc(100vh-2rem)] bg-white rounded-3xl max-sm:rounded-none shadow-2xl overflow-hidden ${activeForm === 'register' ? 'active' : ''
-                }`}>
+            <div className={`relative w-full max-w-4xl h-[600px] max-sm:h-[calc(100vh-2rem)] bg-white rounded-3xl max-sm:rounded-none shadow-2xl overflow-hidden ${activeForm === 'register' ? 'active' : ''}`}>
 
-                {/* Login Form - Desktop: Right Side, Mobile: Bottom */}
+                {/* Login Form */}
                 <div className={`absolute right-0 w-1/2 h-full max-sm:w-full max-sm:h-[70%] max-sm:bottom-0 bg-white flex items-center justify-center p-8 max-sm:p-4 z-10 transition-all duration-[600ms] ease-in-out ${activeForm === 'register'
                     ? 'right-1/2 delay-[1200ms] max-sm:right-0 max-sm:bottom-[30%]'
                     : 'right-0 delay-0 max-sm:bottom-0'
@@ -827,7 +554,7 @@ const Auth = () => {
                     </div>
                 </div>
 
-                {/* Register Form - Desktop: Right Side, Mobile: Bottom */}
+                {/* Register Form */}
                 <div className={`absolute right-0 w-1/2 h-full max-sm:w-full max-sm:h-[70%] max-sm:bottom-0 bg-white flex items-center justify-center p-6 max-sm:p-4 z-10 transition-all duration-[600ms] ease-in-out ${activeForm === 'register'
                     ? 'right-1/2 visible delay-[1200ms] max-sm:right-0 max-sm:bottom-[30%]'
                     : 'right-0 invisible delay-0 max-sm:bottom-0'
@@ -937,7 +664,7 @@ const Auth = () => {
                     </div>
                 </div>
 
-                {/* Toggle Box - Desktop: Horizontal, Mobile: Vertical */}
+                {/* Toggle Box */}
                 <div className={`absolute inset-0 w-full h-full transition-all duration-500 opacity-100`}>
                     <div className={`absolute bg-[#16A34A] z-20 transition-all duration-[1800ms] ease-in-out 
                         w-[300%] h-full rounded-[150px] max-sm:w-full max-sm:h-[300%] max-sm:rounded-[20vw]
@@ -947,7 +674,7 @@ const Auth = () => {
                         }`}></div>
                 </div>
 
-                {/* Toggle Panel Left - Desktop: Left Side, Mobile: Top */}
+                {/* Toggle Panel Left */}
                 <div className={`absolute left-0 w-1/2 h-full max-sm:w-full max-sm:h-[30%] max-sm:top-0 text-white flex flex-col justify-center items-center z-30 transition-all duration-[600ms] ease-in-out ${activeForm === 'register'
                     ? 'left-[-50%] delay-[600ms] max-sm:left-0 max-sm:top-[-30%]'
                     : 'left-0 delay-[1200ms] max-sm:top-0'
@@ -962,7 +689,7 @@ const Auth = () => {
                     </button>
                 </div>
 
-                {/* Toggle Panel Right - Desktop: Right Side, Mobile: Bottom */}
+                {/* Toggle Panel Right */}
                 <div className={`absolute right-0 w-1/2 h-full max-sm:w-full max-sm:h-[30%] max-sm:bottom-0 text-white flex flex-col justify-center items-center z-30 transition-all duration-[600ms] ease-in-out ${activeForm === 'register'
                     ? 'right-0 delay-[1200ms] max-sm:bottom-0'
                     : 'right-[-50%] delay-[600ms] max-sm:right-0 max-sm:bottom-[-30%]'
@@ -976,7 +703,6 @@ const Auth = () => {
                         Login
                     </button>
                 </div>
-
             </div>
         </div>
     );
