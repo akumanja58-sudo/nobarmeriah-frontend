@@ -1,8 +1,17 @@
+/* ============================================================ */
+/* FONTS - Oswald (headings) + Inter (body) */
+/* ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Font variables */
+  --font-heading: 'Oswald', sans-serif;
+  --font-body: 'Inter', sans-serif;
 }
 
 @theme inline {
@@ -19,8 +28,72 @@
   }
 }
 
+/* ============================================================ */
+/* BODY - Default Inter font */
+/* ============================================================ */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* ============================================================ */
+/* FONT CONDENSED - Oswald untuk headings, scores, team names */
+/* ============================================================ */
+.font-condensed {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* ============================================================ */
+/* TYPOGRAPHY UTILITIES */
+/* ============================================================ */
+
+/* Heading style - Oswald Bold */
+.font-heading {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Heading semibold */
+.font-heading-semibold {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+}
+
+/* Body text - Inter (default, tapi bisa dipake explicit) */
+.font-body {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+}
+
+/* Body medium */
+.font-body-medium {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+
+/* Body semibold */
+.font-body-semibold {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+}
+
+/* Body bold */
+.font-body-bold {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+/* ============================================================ */
+/* SCORE & NUMBERS - Oswald untuk angka besar */
+/* ============================================================ */
+.font-score {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
