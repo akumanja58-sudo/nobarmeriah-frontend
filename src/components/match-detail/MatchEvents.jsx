@@ -1,6 +1,6 @@
 'use client';
 
-export default function MatchEvents({ events, homeTeam, awayTeam, homeTeamId, awayTeamId }) {
+export default function MatchEvents({ events, homeTeam, awayTeam, homeTeamId, awayTeamId, homeTeamLogo, awayTeamLogo }) {
 
   // Parse events from API
   // API format: [{ time: {elapsed, extra}, team: {id, name}, player: {id, name}, assist: {}, type, detail, comments }]
@@ -33,13 +33,20 @@ export default function MatchEvents({ events, homeTeam, awayTeam, homeTeamId, aw
     return `${elapsed}'`;
   };
 
+  // Shorten team name for display
+  const getShortName = (name, maxLen = 12) => {
+    if (!name) return 'Team';
+    if (name.length <= maxLen) return name;
+    return name.substring(0, maxLen) + '...';
+  };
+
   // No events available
   if (!events || events.length === 0) {
     return (
-      <div className="match-events bg-white rounded-xl shadow-sm p-8 text-center">
-        <span className="text-4xl mb-4 block">📋</span>
-        <p className="text-gray-500 font-condensed">Belum ada events</p>
-        <p className="text-sm text-gray-400 font-condensed mt-1">Events akan muncul saat pertandingan berjalan</p>
+      <div className="match-events bg-white rounded-xl shadow-sm p-6 text-center">
+        <span className="text-3xl mb-3 block">📋</span>
+        <p className="text-gray-500 font-condensed text-sm">Belum ada events</p>
+        <p className="text-xs text-gray-400 font-condensed mt-1">Events akan muncul saat pertandingan berjalan</p>
       </div>
     );
   }
@@ -128,17 +135,27 @@ export default function MatchEvents({ events, homeTeam, awayTeam, homeTeamId, aw
   return (
     <div className="match-events bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="p-4">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 font-condensed">Match Events</h3>
+        <h3 className="text-base font-bold text-gray-800 mb-3 font-condensed">Match Events</h3>
 
-        {/* Team Headers */}
+        {/* Team Headers with Logos */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-green-500 rounded-full"></div>
-            <span className="font-medium text-gray-800 font-condensed">{homeTeam || 'Home'}</span>
+            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+            {homeTeamLogo ? (
+              <img src={homeTeamLogo} alt="" className="w-5 h-5 object-contain" />
+            ) : (
+              <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
+            )}
+            <span className="font-medium text-gray-800 font-condensed text-sm" title={homeTeam}>{getShortName(homeTeam)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-800 font-condensed">{awayTeam || 'Away'}</span>
-            <div className="w-6 h-6 bg-red-500 rounded-full"></div>
+            <span className="font-medium text-gray-800 font-condensed text-sm" title={awayTeam}>{getShortName(awayTeam)}</span>
+            {awayTeamLogo ? (
+              <img src={awayTeamLogo} alt="" className="w-5 h-5 object-contain" />
+            ) : (
+              <div className="w-5 h-5 bg-gray-200 rounded-full"></div>
+            )}
+            <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
           </div>
         </div>
 

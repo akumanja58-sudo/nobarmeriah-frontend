@@ -307,17 +307,51 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
             {/* Main Content */}
             <main className="flex-1">
                 <div className="max-w-7xl mx-auto px-4 py-4">
-                    {/* Match Header with Refresh Button */}
-                    <div className="relative">
-                        <MatchHeader match={match} isLive={isLive} isFinished={isFinished} />
+                    {/* Breadcrumb */}
+                    <div className="flex items-center gap-2 mb-4 text-sm">
+                        {/* Breadcrumb Links */}
+                        <nav className="flex items-center gap-1.5 text-gray-500 font-condensed flex-wrap">
+                            <a href="/" className="hover:text-green-600 transition-colors">Sepak Bola</a>
+                            <span className="text-gray-400">›</span>
+                            <span className="text-gray-600">{match?.country || match?.league_country || 'Internasional'}</span>
+                            <span className="text-gray-400">›</span>
+                            <a href="#" className="hover:text-green-600 transition-colors text-green-600">
+                                {match?.league_name || match?.league || 'Liga'}
+                            </a>
+                            <span className="text-gray-400">›</span>
+                            <span className="text-gray-700 font-medium truncate max-w-[200px] sm:max-w-none">
+                                {match?.home_team_name || match?.home_team} vs {match?.away_team_name || match?.away_team}
+                            </span>
+                        </nav>
 
-                        {/* Refresh Button & Last Updated */}
-                        <div className="absolute top-2 right-2 flex items-center gap-2">
+                        {/* Updated Time & Refresh - Desktop */}
+                        <div className="hidden sm:flex items-center gap-2 ml-auto">
                             {lastUpdated && (
-                                <span className="text-xs text-gray-400 font-condensed hidden sm:block">
+                                <span className="text-xs text-gray-400 font-condensed">
                                     Updated: {lastUpdated.toLocaleTimeString('id-ID')}
                                 </span>
                             )}
+                            <button
+                                onClick={handleManualRefresh}
+                                disabled={isLoadingMatch}
+                                className="p-1.5 hover:bg-gray-200 rounded-full transition-colors"
+                                title="Refresh data"
+                            >
+                                {isLoadingMatch ? (
+                                    <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                                ) : (
+                                    <RefreshCw className="w-4 h-4 text-gray-500" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Match Header */}
+                    <div className="relative">
+                        <MatchHeader match={match} isLive={isLive} isFinished={isFinished} />
+
+                        {/* Mobile Refresh Button */}
+                        <div className="absolute top-2 right-2 flex items-center gap-2 sm:hidden">
                             <button
                                 onClick={handleManualRefresh}
                                 disabled={isLoadingMatch}
@@ -331,23 +365,15 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                                 )}
                             </button>
                         </div>
-
-                        {/* Live indicator */}
-                        {isLive && (
-                            <div className="absolute top-2 left-2 flex items-center gap-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
-                                <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                                LIVE
-                            </div>
-                        )}
                     </div>
 
                     {/* Main Layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
 
                         {/* ============================================================ */}
-                        {/* LEFT COLUMN - SIDEBAR (Desktop Only) */}
+                        {/* LEFT COLUMN - SIDEBAR (Desktop Only) - Now 4 cols */}
                         {/* ============================================================ */}
-                        <div className="hidden lg:block lg:col-span-3 space-y-4">
+                        <div className="hidden lg:block lg:col-span-4 space-y-4">
                             {/* 1. Odds dari API-Football */}
                             <MatchOdds match={match} />
 
@@ -358,7 +384,20 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                                 isFinished={isFinished}
                             />
 
-                            {/* 3. Klasemen Pra-Pertandingan */}
+                            {/* 3. Match Events - HANYA muncul kalau LIVE atau FINISHED */}
+                            {(isLive || isFinished) && events && events.length > 0 && (
+                                <MatchEvents
+                                    events={events}
+                                    homeTeam={match?.home_team_name || match?.home_team}
+                                    awayTeam={match?.away_team_name || match?.away_team}
+                                    homeTeamId={match?.home_team_id}
+                                    awayTeamId={match?.away_team_id}
+                                    homeTeamLogo={match?.home_team_logo}
+                                    awayTeamLogo={match?.away_team_logo}
+                                />
+                            )}
+
+                            {/* 4. Klasemen Pra-Pertandingan */}
                             <MatchPreStandings
                                 leagueId={match?.league_id}
                                 homeTeamId={match?.home_team_id}
@@ -370,14 +409,14 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                                 season={match?.league_season || match?.season || (new Date().getMonth() + 1 < 8 ? new Date().getFullYear() - 1 : new Date().getFullYear())}
                             />
 
-                            {/* 4. Match Info (Tanggal, Venue, Wasit, dll) */}
+                            {/* 5. Match Info (Tanggal, Venue, Wasit, dll) */}
                             <MatchInfo match={match} />
                         </div>
 
                         {/* ============================================================ */}
-                        {/* CENTER COLUMN - MAIN CONTENT */}
+                        {/* CENTER COLUMN - MAIN CONTENT - Now 5 cols */}
                         {/* ============================================================ */}
-                        <div className="lg:col-span-6 space-y-4">
+                        <div className="lg:col-span-5 space-y-4">
                             {/* Tabs */}
                             <MatchTabs
                                 activeTab={activeTab}
@@ -387,15 +426,6 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
 
                             {/* Tab Content */}
                             {renderTabContent()}
-
-                            {/* Match Events (always visible) */}
-                            <MatchEvents
-                                events={events}
-                                homeTeam={match?.home_team_name || match?.home_team}
-                                awayTeam={match?.away_team_name || match?.away_team}
-                                homeTeamId={match?.home_team_id}
-                                awayTeamId={match?.away_team_id}
-                            />
 
                             {/* About Match */}
                             <div className="bg-white rounded-xl shadow-sm p-4">
@@ -412,7 +442,7 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                         </div>
 
                         {/* ============================================================ */}
-                        {/* RIGHT COLUMN - ADS SIDEBAR (Desktop Only) */}
+                        {/* RIGHT COLUMN - ADS SIDEBAR (Desktop Only) - 3 cols */}
                         {/* ============================================================ */}
                         <div className="hidden lg:block lg:col-span-3 space-y-4">
                             {/* Ad Slot 1 */}

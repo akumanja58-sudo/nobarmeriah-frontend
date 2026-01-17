@@ -246,8 +246,16 @@ export default function MatchVote({ match, user, isFinished }) {
   const canPredictScore = !isFinished && !isMatchStarted && !hasScorePrediction;
 
   // Get team names (shortened for display)
+  const getShortName = (name, maxLen = 12) => {
+    if (!name) return 'Team';
+    if (name.length <= maxLen) return name;
+    return name.substring(0, maxLen) + '...';
+  };
+
   const homeTeamName = match?.home_team_name || match?.home_team || 'Home';
   const awayTeamName = match?.away_team_name || match?.away_team || 'Away';
+  const homeTeamShort = getShortName(homeTeamName, 10);
+  const awayTeamShort = getShortName(awayTeamName, 10);
 
   // ============================================================
   // RENDER
@@ -300,7 +308,7 @@ export default function MatchVote({ match, user, isFinished }) {
                       <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-600 font-condensed truncate">{homeTeamName}</p>
+                  <p className="text-[10px] text-gray-600 font-condensed truncate" title={homeTeamName}>{homeTeamShort}</p>
                 </div>
                 <div className="text-center">
                   <div className="w-8 h-8 mx-auto mb-1 bg-gray-100 rounded-full flex items-center justify-center">
@@ -316,7 +324,7 @@ export default function MatchVote({ match, user, isFinished }) {
                       <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-600 font-condensed truncate">{awayTeamName}</p>
+                  <p className="text-[10px] text-gray-600 font-condensed truncate" title={awayTeamName}>{awayTeamShort}</p>
                 </div>
               </div>
 
@@ -471,7 +479,7 @@ export default function MatchVote({ match, user, isFinished }) {
                           <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-700 font-condensed font-medium truncate">{homeTeamName}</p>
+                      <p className="text-[10px] text-gray-700 font-condensed font-medium truncate" title={homeTeamName}>{homeTeamShort}</p>
                     </div>
                     <div className="text-center">
                       <div className="w-10 h-10 mx-auto mb-1">
@@ -481,7 +489,7 @@ export default function MatchVote({ match, user, isFinished }) {
                           <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-700 font-condensed font-medium truncate">{awayTeamName}</p>
+                      <p className="text-[10px] text-gray-700 font-condensed font-medium truncate" title={awayTeamName}>{awayTeamShort}</p>
                     </div>
                   </div>
 

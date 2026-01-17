@@ -33,64 +33,16 @@ export default function MatchHeader({ match, isLive, isFinished }) {
 
   return (
     <div className="match-header bg-white rounded-xl shadow-sm overflow-hidden">
-      {/* Breadcrumb - Desktop Only */}
-      <div className="hidden md:flex px-4 py-2 bg-gray-50 border-b border-gray-100 items-center gap-2 text-sm">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="text-green-600 hover:underline cursor-pointer font-condensed">Sepak Bola</span>
-        <span className="text-gray-400">›</span>
-        <span className="text-green-600 hover:underline cursor-pointer font-condensed">
-          {match?.country || 'Internasional'}
-        </span>
-        <span className="text-gray-400">›</span>
-        <span className="text-green-600 hover:underline cursor-pointer font-condensed">
-          {match?.league_name || match?.league || 'Football'}
-        </span>
-        <span className="text-gray-400">›</span>
-        <span className="text-gray-600 truncate font-condensed">
-          {match?.home_team_name || 'Home'} vs {match?.away_team_name || 'Away'}
-        </span>
-      </div>
-
-      {/* Mobile Breadcrumb - Simplified */}
-      <div className="md:hidden px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2 text-xs overflow-x-auto">
-        <button
-          onClick={() => router.back()}
-          className="flex-shrink-0 flex items-center text-gray-500 hover:text-gray-700"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="text-green-600 font-condensed flex-shrink-0">Sepak Bola</span>
-        <span className="text-gray-400 flex-shrink-0">›</span>
-        <span className="text-green-600 font-condensed flex-shrink-0">
-          {match?.league_country || match?.country || 'Internasional'}
-        </span>
-        <span className="text-gray-400 flex-shrink-0">›</span>
-        <span className="text-green-600 font-condensed truncate">
-          {match?.league_name || match?.league || 'Liga'}
-        </span>
-
-        {/* Favorite & Share - Mobile */}
-        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => setIsFavorite(!isFavorite)}
-            className={`p-1.5 rounded-full transition-all ${isFavorite ? 'text-yellow-500' : 'text-gray-400'
-              }`}
-          >
-            <Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400' : ''}`} />
-          </button>
-          <button className="p-1.5 text-gray-400">
-            <Share2 className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
       {/* Main Header - Desktop */}
       <div className="hidden md:block p-6 relative">
+        {/* LIVE Badge - Top Left */}
+        {isLive && (
+          <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
+            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+            LIVE
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           {/* Home Team */}
           <div className="flex-1 flex flex-col items-center text-center">
@@ -176,14 +128,20 @@ export default function MatchHeader({ match, isLive, isFinished }) {
 
         {/* Match Info - Desktop */}
         <div className="flex items-center justify-center gap-4 mt-4 text-sm text-gray-500">
-          <span className="flex items-center gap-1 font-condensed">
-            📅 {matchDateTime.date} • {matchDateTime.time}
+          <span className="flex items-center gap-1.5 font-condensed">
+            🗓️ {matchDateTime.date} • {matchDateTime.time}
           </span>
-          <span className="flex items-center gap-1 font-condensed">
-            🏆 {match?.league_name || match?.league || 'Football'}
+          <span className="flex items-center gap-2 font-condensed">
+            <img
+              src={match?.league_logo || `https://media.api-sports.io/football/leagues/${match?.league_id}.png`}
+              alt=""
+              className="w-5 h-5 object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            {match?.league_name || match?.league || 'Football'}
           </span>
           {match?.venue && (
-            <span className="flex items-center gap-1 font-condensed">
+            <span className="flex items-center gap-1.5 font-condensed">
               🏟️ {match.venue}
             </span>
           )}
@@ -191,8 +149,29 @@ export default function MatchHeader({ match, isLive, isFinished }) {
       </div>
 
       {/* Main Header - Mobile */}
-      <div className="md:hidden p-4">
-        <div className="flex items-center justify-between gap-2">
+      <div className="md:hidden p-4 relative">
+        {/* LIVE Badge - Top Left Mobile */}
+        {isLive && (
+          <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded-md text-[10px] font-bold">
+            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+            LIVE
+          </div>
+        )}
+
+        {/* Favorite & Share - Top Right Mobile */}
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          <button
+            onClick={() => setIsFavorite(!isFavorite)}
+            className={`p-1.5 rounded-full transition-all ${isFavorite ? 'text-yellow-500' : 'text-gray-400'}`}
+          >
+            <Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400' : ''}`} />
+          </button>
+          <button className="p-1.5 text-gray-400">
+            <Share2 className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-6">
           {/* Home Team */}
           <div className="flex-1 flex flex-col items-center text-center min-w-0">
             <div className="w-14 h-14 mb-2 flex items-center justify-center">
@@ -267,7 +246,7 @@ export default function MatchHeader({ match, isLive, isFinished }) {
               <img
                 src={match.league_logo}
                 alt={match?.league_name}
-                className="w-10 h-10 object-contain"
+                className="w-5 h-5 object-contain"
               />
             ) : (
               <span>🏆</span>
