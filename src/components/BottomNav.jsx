@@ -1,11 +1,31 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Home, Search, Star, User } from 'lucide-react';
+import { supabase } from '@/utils/supabaseClient';
 
-export default function BottomNav({ user, onAuthRedirect, onShowProfile, onShowSearch }) {
+export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const [user, setUser] = useState(null);
+
+  // Check auth status
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+
+    checkUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const navItems = [
     {
@@ -20,27 +40,30 @@ export default function BottomNav({ user, onAuthRedirect, onShowProfile, onShowS
       name: 'Cari',
       icon: Search,
       path: '/search',
-      action: () => onShowSearch?.()
+      action: () => router.push('/trending')
     },
     {
       id: 'favorite',
       name: 'Favorit',
       icon: Star,
       path: '/favorites',
-      action: () => router.push('/favorites')
+      action: () => router.push('/trending')
     },
     {
       id: 'profile',
       name: 'Profil',
       icon: User,
       path: '/profile',
-      action: () => user ? onShowProfile?.() : onAuthRedirect?.()
+      action: () => user ? router.push('/profile') : router.push('/auth')
     },
   ];
 
   const isActive = (item) => {
     if (item.id === 'home') {
       return pathname === '/' || pathname.startsWith('/match');
+    }
+    if (item.id === 'profile') {
+      return pathname === '/profile';
     }
     return pathname === item.path;
   };
@@ -60,8 +83,8 @@ export default function BottomNav({ user, onAuthRedirect, onShowProfile, onShowS
                 key={item.id}
                 onClick={item.action}
                 className={`relative flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-xl transition-all flex-1 max-w-[80px] ${active
-                    ? 'text-green-600 bg-green-50'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                  ? 'text-green-600 bg-green-50'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
                   }`}
               >
                 <item.icon className={`w-5 h-5 ${active ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} />
