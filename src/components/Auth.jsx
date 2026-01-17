@@ -6,16 +6,26 @@ import { supabase } from '@/utils/supabaseClient';
 
 const Auth = () => {
     const router = useRouter();
-    const [activeForm, setActiveForm] = useState('login'); // 'login', 'register'
-    const [mounted, setMounted] = useState(false);
+    const [activeForm, setActiveForm] = useState('login');
+    const [isMounted, setIsMounted] = useState(false);
 
-    // Set mounted state after component mounts (client-side only)
+    // CRITICAL: Set mounted state after hydration
     useEffect(() => {
-        setMounted(true);
+        setIsMounted(true);
     }, []);
 
+    // Safe window origin getter
+    const getWindowOrigin = () => {
+        if (typeof window !== 'undefined') {
+            return window.location.origin;
+        }
+        return '';
+    };
+
     const getDeviceInfo = () => {
-        if (typeof window === 'undefined') return 'Unknown';
+        if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+            return 'Unknown';
+        }
 
         const ua = navigator.userAgent;
         let browser = "Unknown";
@@ -37,32 +47,28 @@ const Auth = () => {
 
     const checkSession = async (email) => {
         try {
-            console.log('🔍 DETAILED: Checking active session for:', email);
-
-            const { data: existingSession, error, count } = await supabase
+            const { data: existingSession, error } = await supabase
                 .from('active_sessions')
                 .select('*', { count: 'exact' })
                 .eq('account_email', email.toLowerCase())
                 .order('login_time', { ascending: false });
 
             if (error) {
-                console.error('❌ Database error:', error);
+                console.error('Database error:', error);
                 return false;
             }
 
             if (!existingSession || existingSession.length === 0) {
-                console.log('✅ No active session found for this email - ALLOW LOGIN');
                 return false;
             }
 
             const session = existingSession[0];
             const loginTime = new Date(session.login_time);
             const now = new Date();
-            const sessionDuration = 24 * 60 * 60 * 1000; // 24 jam
+            const sessionDuration = 24 * 60 * 60 * 1000;
             const isExpired = (now - loginTime) > sessionDuration;
 
             if (isExpired) {
-                console.log('⏰ Session expired, cleaning up and ALLOW LOGIN');
                 await supabase
                     .from('active_sessions')
                     .delete()
@@ -70,19 +76,16 @@ const Auth = () => {
                 return false;
             }
 
-            console.log('🚫 ACTIVE SESSION EXISTS - BLOCK LOGIN!');
             return true;
 
         } catch (err) {
-            console.error('💥 checkSession unexpected error:', err);
+            console.error('checkSession error:', err);
             return false;
         }
     };
 
     const createUserSession = async (email, userId) => {
         try {
-            console.log('💾 Creating session for:', email, 'userId:', userId);
-
             await supabase
                 .from('active_sessions')
                 .delete()
@@ -97,21 +100,20 @@ const Auth = () => {
                 last_activity: new Date().toISOString()
             };
 
-            const { data: insertedData, error: insertError } = await supabase
+            const { error: insertError } = await supabase
                 .from('active_sessions')
                 .insert(newSession)
                 .select();
 
             if (insertError) {
-                console.error('❌ Session creation error:', insertError);
+                console.error('Session creation error:', insertError);
                 return false;
             }
 
-            console.log('✅ New session created successfully:', insertedData);
             return true;
 
         } catch (err) {
-            console.error('💥 Session creation unexpected error:', err);
+            console.error('Session creation error:', err);
             return false;
         }
     };
@@ -150,19 +152,30 @@ const Auth = () => {
     // Flag to prevent auto redirect during registration
     const [isRegistering, setIsRegistering] = useState(false);
 
-    // Google Login Function - FIXED for SSR
+    // Google Login Function - SSR SAFE
     const handleGoogleLogin = async () => {
-        if (typeof window === 'undefined') return;
+        // CRITICAL: Check if window exists
         if (typeof window === 'undefined') return;
 
-        const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: `${window.location.origin}/check-google`,
-            },
-        });
-        if (error) console.error('Google login error:', error.message);
-        else if (data?.url) window.location.href = data.url;
+        try {
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${getWindowOrigin()}/check-google`,
+                },
+            });
+
+            if (error) {
+                console.error('Google login error:', error.message);
+                return;
+            }
+
+            if (data?.url) {
+                window.location.href = data.url;
+            }
+        } catch (err) {
+            console.error('Google login error:', err);
+        }
     };
 
     // Back to Home function
@@ -173,8 +186,6 @@ const Auth = () => {
     // Login Handler
     const handleLogin = async (e) => {
         e.preventDefault();
-        console.log('🚀 SIMPLE: Login started');
-
         setIsLoadingLogin(true);
         setLoginData(prev => ({ ...prev, errorMsg: '' }));
 
@@ -192,7 +203,6 @@ const Auth = () => {
             }
 
             const email = profile.email;
-            console.log('Found email:', email);
 
             const sessionExists = await checkSession(email);
 
@@ -232,7 +242,6 @@ const Auth = () => {
     // Register Logic
     const handleRegister = async (e) => {
         e.preventDefault();
-        console.log('🚀 handleRegister called!', registerData);
         setIsLoadingRegister(true);
         setIsRegistering(true);
         setRegisterData(prev => ({ ...prev, errorMsg: '', successMsg: '' }));
@@ -373,9 +382,9 @@ const Auth = () => {
         }, 2000);
     };
 
-    // Auth State Check
+    // Auth State Check - Only run on client
     useEffect(() => {
-        if (typeof window === 'undefined') return;
+        if (!isMounted) return;
 
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
@@ -390,10 +399,10 @@ const Auth = () => {
         });
 
         return () => listener?.subscription?.unsubscribe();
-    }, [isRegistering, router]);
+    }, [isMounted, isRegistering, router]);
 
-    // Don't render until mounted (prevents hydration mismatch)
-    if (!mounted) {
+    // CRITICAL: Don't render until mounted (prevents SSR issues)
+    if (!isMounted) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
@@ -666,7 +675,7 @@ const Auth = () => {
                 </div>
 
                 {/* Toggle Box */}
-                <div className={`absolute inset-0 w-full h-full transition-all duration-500 opacity-100`}>
+                <div className="absolute inset-0 w-full h-full transition-all duration-500 opacity-100">
                     <div className={`absolute bg-[#16A34A] z-20 transition-all duration-[1800ms] ease-in-out 
                         w-[300%] h-full rounded-[150px] max-sm:w-full max-sm:h-[300%] max-sm:rounded-[20vw]
                         ${activeForm === 'register'
@@ -710,4 +719,3 @@ const Auth = () => {
 };
 
 export default Auth;
-
