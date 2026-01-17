@@ -13,6 +13,8 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const [activeRankingTab, setActiveRankingTab] = useState('fifa');
   const [slideDirection, setSlideDirection] = useState('next');
   const [isAnimating, setIsAnimating] = useState(false);
+  const [topPlayers, setTopPlayers] = useState([]);
+  const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
 
   // ============================================================
   // LIGA DEFINITIONS - Spesifik per negara
@@ -284,6 +286,44 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const currentMatch = displayMatches[currentIndex];
 
   // ============================================================
+  // FETCH TOP RATED PLAYERS FROM BACKEND
+  // ============================================================
+  const fetchTopPlayers = async () => {
+    setIsLoadingPlayers(true);
+    try {
+      // Fetch from backend API
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/matches/top-players?limit=3`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data && result.data.length > 0) {
+        setTopPlayers(result.data);
+      } else {
+        // No data available
+        setTopPlayers([]);
+      }
+    } catch (err) {
+      console.error('Error fetching top players:', err);
+      setTopPlayers([]);
+    } finally {
+      setIsLoadingPlayers(false);
+    }
+  };
+
+  // Fetch top players on mount
+  useEffect(() => {
+    fetchTopPlayers();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchTopPlayers, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ============================================================
   // CHECK EXISTING VOTE FROM DATABASE
   // ============================================================
   const checkExistingVote = async () => {
@@ -500,11 +540,7 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     { rank: 3, team: 'Bayern Munich', points: 117.000, change: 1 },
   ];
 
-  const topPlayers = [
-    { rank: 1, name: 'Adrien Rabiot', position: 'Gelandang', rating: 9.8, stats: '1 - 3', color: '#FF6B6B', initial: 'A' },
-    { rank: 2, name: 'Rafael Borré', position: 'Penyerang', rating: 9.5, stats: '0 - 4', color: '#FFA94D', initial: 'R' },
-    { rank: 3, name: 'Léo Rafael', position: 'Gelandang', rating: 9.2, stats: '1 - 3', color: '#FFD43B', initial: 'L' },
-  ];
+  // topPlayers is now fetched from API (see useEffect above)
 
   const getOdds = () => ({
     home: (1.5 + Math.random() * 2).toFixed(2),
@@ -849,36 +885,84 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
         <div className="border-t border-gray-100">
           <div className="px-4 py-3 flex items-center justify-between">
             <h3 className="font-semibold text-gray-800 font-condensed">Pemain terbaik</h3>
-            <Info className="w-4 h-4 text-gray-400" />
+            <button
+              onClick={fetchTopPlayers}
+              disabled={isLoadingPlayers}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {isLoadingPlayers ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Info className="w-4 h-4" />
+              )}
+            </button>
           </div>
 
           <div className="px-4 pb-3 space-y-3">
-            {topPlayers.map((player) => (
-              <div key={player.rank} className="flex items-center gap-3">
-                <span className="text-sm font-bold text-gray-400 w-4">{player.rank}</span>
-
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                  style={{ backgroundColor: player.color }}
-                >
-                  {player.initial}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800 text-sm font-condensed truncate">{player.name}</p>
-                  <p className="text-xs text-gray-500 font-condensed">{player.position}</p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <span>⚽</span> {player.stats}
-                  </span>
-                  <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[32px] text-center">
-                    {player.rating}
-                  </span>
-                </div>
+            {isLoadingPlayers ? (
+              // Loading skeleton
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                    <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-16"></div>
+                    </div>
+                    <div className="h-6 w-10 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : topPlayers.length === 0 ? (
+              // Empty state
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500 font-condensed">Belum ada data pemain</p>
+                <p className="text-xs text-gray-400 font-condensed mt-1">Data rating tersedia setelah match liga top selesai</p>
+              </div>
+            ) : (
+              // Player list
+              topPlayers.map((player) => (
+                <div key={player.rank} className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-gray-400 w-4">{player.rank}</span>
+
+                  {player.photo ? (
+                    <img
+                      src={player.photo}
+                      alt={player.name}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${player.photo ? 'hidden' : ''}`}
+                    style={{ backgroundColor: player.color }}
+                  >
+                    {player.initial}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm font-condensed truncate">{player.name}</p>
+                    <p className="text-xs text-gray-500 font-condensed">{player.position}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <span>⚽</span> {player.stats}
+                    </span>
+                    <span
+                      className="text-white text-xs px-2 py-1 rounded font-bold min-w-[32px] text-center"
+                      style={{ backgroundColor: player.color || '#3B82F6' }}
+                    >
+                      {typeof player.rating === 'number' ? player.rating.toFixed(1) : player.rating}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="px-4 pb-4">
