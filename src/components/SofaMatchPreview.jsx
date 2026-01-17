@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, Info, ThumbsUp, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Info, ThumbsUp, ExternalLink, Check, Loader2 } from 'lucide-react';
+import { supabase } from '@/utils/supabaseClient';
 
 export default function SofaMatchPreview({ matches = [], user, onMatchClick, onChallengeClick }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedVote, setSelectedVote] = useState(null);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [activeRankingTab, setActiveRankingTab] = useState('fifa');
   const [slideDirection, setSlideDirection] = useState('next');
@@ -17,33 +20,32 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
 
   // Pattern untuk EXCLUDE (liga yang bukan top tier)
   const excludePatterns = [
-    /division\s*(one|two|three|1|2|3)/i,  // Division One, Division 2, etc
-    /league\s*(one|two|three|1|2)/i,       // League One, League Two
-    /u\s*-?\s*(17|18|19|20|21|23)/i,       // U21, U-23, U19, etc
-    /under\s*(17|18|19|20|21|23)/i,        // Under 21, Under 23
-    /reserve/i,                             // Reserve league
-    /youth/i,                               // Youth league
-    /academy/i,                             // Academy
-    /2nd\s*division/i,                      // 2nd Division
-    /second\s*division/i,                   // Second Division
-    /championship/i,                        // EFL Championship (tier 2 England)
-    /league\s*cup/i,                        // League Cup (bukan liga)
-    /efl\s*trophy/i,                        // EFL Trophy
-    /community\s*shield/i,                  // Community Shield
-    /super\s*cup/i,                         // Super Cup
-    /premier\s*league\s*2/i,               // Premier League 2 (U21)
-    /premier\s*league\s*cup/i,             // Premier League Cup
-    /professional\s*development/i,          // Professional Development League
-    /2\.\s*bundesliga/i,                    // 2. Bundesliga (tier 2 Germany)
-    /3\.\s*liga/i,                          // 3. Liga (tier 3 Germany)
-    /regionalliga/i,                        // Regionalliga (tier 4 Germany)
-    /ligue\s*2/i,                           // Ligue 2 (tier 2 France)
-    /serie\s*b/i,                           // Serie B (tier 2 Italy)
-    /segunda/i,                             // Segunda Division (tier 2 Spain)
-    /segunda\s*division/i,                  // Segunda Division
+    /division\s*(one|two|three|1|2|3)/i,
+    /league\s*(one|two|three|1|2)/i,
+    /u\s*-?\s*(17|18|19|20|21|23)/i,
+    /under\s*(17|18|19|20|21|23)/i,
+    /reserve/i,
+    /youth/i,
+    /academy/i,
+    /2nd\s*division/i,
+    /second\s*division/i,
+    /championship/i,
+    /league\s*cup/i,
+    /efl\s*trophy/i,
+    /community\s*shield/i,
+    /super\s*cup/i,
+    /premier\s*league\s*2/i,
+    /premier\s*league\s*cup/i,
+    /professional\s*development/i,
+    /2\.\s*bundesliga/i,
+    /3\.\s*liga/i,
+    /regionalliga/i,
+    /ligue\s*2/i,
+    /serie\s*b/i,
+    /segunda/i,
+    /segunda\s*division/i,
   ];
 
-  // Check if league should be excluded
   const shouldExcludeLeague = (leagueName) => {
     return excludePatterns.some(pattern => pattern.test(leagueName));
   };
@@ -52,8 +54,6 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     {
       name: 'Premier League',
       country: 'England',
-      // Harus ada "England" atau "English" atau league_id 39
-      // Dan TIDAK BOLEH ada "2", "Division", "U21", dll
       patterns: [/^premier\s*league$/i, /english\s*premier\s*league/i],
       countryPatterns: [/england/i, /english/i, /inggris/i],
       leagueIds: [39],
@@ -78,20 +78,20 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     {
       name: 'Bundesliga',
       country: 'Germany',
-      patterns: [/^bundesliga$/i],  // Exact match, bukan "2. Bundesliga"
+      patterns: [/^bundesliga$/i],
       countryPatterns: [/germany/i, /german/i, /jerman/i, /deutschland/i],
       leagueIds: [78],
       priority: 4,
-      requireCountryCheck: true,  // Harus cek country
+      requireCountryCheck: true,
     },
     {
       name: 'Ligue 1',
       country: 'France',
-      patterns: [/^ligue\s*1$/i, /ligue\s*1\s*uber\s*eats/i],  // Exact match
+      patterns: [/^ligue\s*1$/i, /ligue\s*1\s*uber\s*eats/i],
       countryPatterns: [/france/i, /french/i, /prancis/i, /perancis/i],
       leagueIds: [61],
       priority: 5,
-      requireCountryCheck: true,  // Harus cek country (bukan Congo, Tunisia dll)
+      requireCountryCheck: true,
     },
     {
       name: 'Champions League',
@@ -111,32 +111,24 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     },
   ];
 
-  // ============================================================
-  // CHECK IF MATCH BELONGS TO SPECIFIC LEAGUE
-  // ============================================================
   const matchBelongsToLeague = (match, leagueDef) => {
     const leagueName = (match.league_name || match.competition || match.league || '');
     const leagueNameLower = leagueName.toLowerCase();
     const countryName = (match.country || match.league_country || '').toLowerCase();
     const leagueId = Number(match.league_id || 0);
 
-    // FIRST: Check if this league should be excluded
     if (shouldExcludeLeague(leagueName)) {
       return false;
     }
 
-    // Check by league ID first (most accurate)
     if (leagueDef.leagueIds.includes(leagueId)) {
       return true;
     }
 
-    // Check by league name pattern
     const matchesLeagueName = leagueDef.patterns.some(pattern => pattern.test(leagueNameLower));
 
     if (matchesLeagueName) {
-      // For leagues that require country check
       if (leagueDef.requireCountryCheck || leagueDef.name === 'Premier League' || leagueDef.name === 'Serie A') {
-        // Must also match country
         const matchesCountry = leagueDef.countryPatterns.some(pattern =>
           pattern.test(countryName)
         );
@@ -152,25 +144,13 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     return false;
   };
 
-  // ============================================================
-  // GET DISPLAY MATCHES - Gabungin semua top league, ambil 5
-  // ============================================================
   const getDisplayMatches = () => {
-
-    // Debug: Log semua unique league names
-    const uniqueLeagues = [...new Set(matches.map(m =>
-      `${m.league_name || m.competition} (${m.country || m.league_country || 'Unknown'})`
-    ))];
-
-    // Collect ALL matches from ALL top leagues
     let allTopLeagueMatches = [];
 
     for (const leagueDef of leagueDefinitions) {
       const leagueMatches = matches.filter(match => matchBelongsToLeague(match, leagueDef));
 
       if (leagueMatches.length > 0) {
-
-        // Add priority to each match for sorting later
         const matchesWithPriority = leagueMatches.map(m => ({
           ...m,
           _leaguePriority: leagueDef.priority,
@@ -181,103 +161,154 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
       }
     }
 
-
     if (allTopLeagueMatches.length > 0) {
-      // Prioritaskan LIVE matches dulu
       const liveMatches = allTopLeagueMatches.filter(m => {
         const status = (m.status_short || m.status || '').toUpperCase();
         return ['1H', '2H', 'HT', 'LIVE', 'ET', 'PT'].includes(status) || m.is_live;
       });
 
       if (liveMatches.length > 0) {
-        // Sort by league priority, then take 5
-        const sorted = liveMatches.sort((a, b) => a._leaguePriority - b._leaguePriority);
-        return sorted.slice(0, 5);
+        return liveMatches.slice(0, 5);
       }
 
-      // No live matches, sort by league priority and take 5
-      // This ensures we get mix from different top leagues
-      const sorted = allTopLeagueMatches.sort((a, b) => a._leaguePriority - b._leaguePriority);
-
-      // Try to get variety - max 2 from each league
-      const result = [];
-      const leagueCount = {};
-
-      for (const match of sorted) {
-        const leagueName = match._leagueName;
-        leagueCount[leagueName] = (leagueCount[leagueName] || 0) + 1;
-
-        // Max 2 matches per league for variety
-        if (leagueCount[leagueName] <= 2) {
-          result.push(match);
-        }
-
-        if (result.length >= 5) break;
-      }
-
-      // If we don't have 5 yet, fill with remaining
-      if (result.length < 5) {
-        for (const match of sorted) {
-          if (!result.includes(match)) {
-            result.push(match);
-          }
-          if (result.length >= 5) break;
-        }
-      }
-
-      return result;
+      const sortedMatches = allTopLeagueMatches.sort((a, b) => a._leaguePriority - b._leaguePriority);
+      return sortedMatches.slice(0, 5);
     }
 
-    // Fallback: Random 5 matches
-    const shuffled = [...matches].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 5);
+    return matches.slice(0, 5);
   };
 
   const displayMatches = getDisplayMatches();
-  const currentMatch = displayMatches[currentIndex] || null;
+  const currentMatch = displayMatches[currentIndex];
 
   // ============================================================
-  // AUTO-SLIDE
+  // CHECK EXISTING VOTE FROM DATABASE
+  // ============================================================
+  const checkExistingVote = async () => {
+    if (!user || !currentMatch) return;
+
+    const matchId = parseInt(currentMatch.id || currentMatch.match_id);
+    if (!matchId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('winner_predictions')
+        .select('predicted_result')
+        .eq('email', user.email)
+        .eq('match_id', matchId)
+        .single();
+
+      if (data && !error) {
+        setSelectedVote(data.predicted_result);
+        setHasVoted(true);
+      } else {
+        setSelectedVote(null);
+        setHasVoted(false);
+      }
+    } catch (err) {
+      console.log('No existing vote found');
+      setSelectedVote(null);
+      setHasVoted(false);
+    }
+  };
+
+  // Check vote when match changes or user logs in
+  useEffect(() => {
+    checkExistingVote();
+  }, [currentMatch?.id, user?.email]);
+
+  // ============================================================
+  // SUBMIT VOTE TO DATABASE
+  // ============================================================
+  const handleVote = async (vote) => {
+    if (!user) {
+      alert('Login dulu untuk voting!');
+      return;
+    }
+
+    if (hasVoted) {
+      alert('Kamu sudah voting untuk pertandingan ini!');
+      return;
+    }
+
+    // Check if match already started or finished
+    const statusShort = (currentMatch.status_short || currentMatch.status || '').toUpperCase();
+    const isLive = ['1H', '2H', 'HT', 'LIVE', 'ET', 'PT'].includes(statusShort);
+    const isFinished = ['FT', 'AET', 'PEN'].includes(statusShort);
+
+    if (isLive || isFinished) {
+      alert('Tidak bisa voting untuk pertandingan yang sudah dimulai atau selesai!');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const matchId = parseInt(currentMatch.id || currentMatch.match_id);
+
+      const { error } = await supabase
+        .from('winner_predictions')
+        .insert([{
+          email: user.email,
+          match_id: matchId,
+          predicted_result: vote,
+          home_team: currentMatch.home_team_name || currentMatch.home_team,
+          away_team: currentMatch.away_team_name || currentMatch.away_team,
+          league_name: currentMatch.league_name || currentMatch.competition || currentMatch.league,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }]);
+
+      if (error) {
+        console.error('Vote error:', error);
+        alert('Gagal menyimpan vote: ' + error.message);
+        return;
+      }
+
+      setSelectedVote(vote);
+      setHasVoted(true);
+      alert('🎯 Vote berhasil disimpan!');
+
+    } catch (err) {
+      console.error('Vote error:', err);
+      alert('Terjadi kesalahan saat voting');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ============================================================
+  // AUTO-PLAY & NAVIGATION
   // ============================================================
   useEffect(() => {
     if (!isAutoPlaying || displayMatches.length <= 1) return;
 
     const interval = setInterval(() => {
-      handleNext();
-    }, 6000);
+      setCurrentIndex((prev) => (prev + 1) % displayMatches.length);
+    }, 8000);
 
     return () => clearInterval(interval);
-  }, [isAutoPlaying, displayMatches.length, currentIndex]);
+  }, [isAutoPlaying, displayMatches.length]);
 
-  // Reset index when matches change
-  useEffect(() => {
-    setCurrentIndex(0);
-  }, [matches.length]);
-
-  // ============================================================
-  // NAVIGATION HANDLERS
-  // ============================================================
   const handlePrev = () => {
     if (isAnimating) return;
     setIsAutoPlaying(false);
-    setSlideDirection('prev');
     setIsAnimating(true);
+    setSlideDirection('prev');
 
     setTimeout(() => {
-      setCurrentIndex(prev => (prev - 1 + displayMatches.length) % displayMatches.length);
-      setSelectedVote(null);
+      setCurrentIndex((prev) => (prev - 1 + displayMatches.length) % displayMatches.length);
       setIsAnimating(false);
     }, 300);
   };
 
   const handleNext = () => {
     if (isAnimating) return;
-    setSlideDirection('next');
     setIsAnimating(true);
+    setSlideDirection('next');
 
     setTimeout(() => {
-      setCurrentIndex(prev => (prev + 1) % displayMatches.length);
-      setSelectedVote(null);
+      setCurrentIndex((prev) => (prev + 1) % displayMatches.length);
       setIsAnimating(false);
     }, 300);
   };
@@ -285,25 +316,13 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const goToIndex = (index) => {
     if (isAnimating || index === currentIndex) return;
     setIsAutoPlaying(false);
-    setSlideDirection(index > currentIndex ? 'next' : 'prev');
     setIsAnimating(true);
+    setSlideDirection(index > currentIndex ? 'next' : 'prev');
 
     setTimeout(() => {
       setCurrentIndex(index);
-      setSelectedVote(null);
       setIsAnimating(false);
     }, 300);
-  };
-
-  // ============================================================
-  // VOTE HANDLER
-  // ============================================================
-  const handleVote = (vote) => {
-    if (!user) {
-      alert('Login dulu untuk voting!');
-      return;
-    }
-    setSelectedVote(vote);
   };
 
   // ============================================================
@@ -332,7 +351,6 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
       };
     }
 
-    // Upcoming match
     const matchDate = match.match_date || match.date;
     if (matchDate) {
       const date = new Date(matchDate);
@@ -358,7 +376,7 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   };
 
   // ============================================================
-  // MOCK DATA
+  // MOCK DATA FOR RANKINGS
   // ============================================================
   const fifaRankings = [
     { rank: 1, team: 'Argentina', points: 1867.25, change: 0 },
@@ -390,6 +408,12 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const odds = getOdds();
   const matchDisplay = currentMatch ? getMatchDisplay(currentMatch) : { time: '-', status: '' };
 
+  // Check if voting is allowed
+  const statusShort = (currentMatch?.status_short || currentMatch?.status || '').toUpperCase();
+  const isMatchLive = ['1H', '2H', 'HT', 'LIVE', 'ET', 'PT'].includes(statusShort);
+  const isMatchFinished = ['FT', 'AET', 'PEN'].includes(statusShort);
+  const canVote = !isMatchLive && !isMatchFinished && !hasVoted;
+
   // ============================================================
   // LOADING STATE
   // ============================================================
@@ -398,66 +422,54 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
       <div className="bg-white rounded-xl shadow-sm p-8 text-center">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/3 mx-auto mb-4"></div>
-          <div className="h-20 bg-gray-200 rounded mb-4"></div>
+          <div className="h-32 bg-gray-200 rounded mb-4"></div>
           <div className="h-12 bg-gray-200 rounded"></div>
         </div>
-        <p className="text-gray-500 text-sm mt-4 font-condensed">Memuat pertandingan...</p>
       </div>
     );
   }
 
-  // ============================================================
-  // RENDER
-  // ============================================================
   return (
     <div className="space-y-4">
-      {/* Main Match Card */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         {/* League Header */}
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-          {currentMatch.league_logo ? (
-            <img
-              src={currentMatch.league_logo}
-              alt=""
-              className="w-10 h-10 object-contain"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          ) : (
-            <span className="text-lg">⚽</span>
-          )}
-          <span className="font-semibold text-gray-800 font-condensed">
-            {currentMatch.league_name || currentMatch.competition || 'Liga'}
-          </span>
-          {(currentMatch.country || currentMatch.league_country) && (
-            <span className="text-xs text-gray-400 font-condensed">
-              • {currentMatch.country || currentMatch.league_country}
+        <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            {currentMatch.league_logo ? (
+              <img
+                src={currentMatch.league_logo}
+                alt=""
+                className="w-5 h-5 object-contain"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            ) : (
+              <span className="text-sm">⚽</span>
+            )}
+            <h3 className="font-bold text-gray-800 font-condensed">
+              {currentMatch._leagueName || currentMatch.league_name || currentMatch.competition || 'League'}
+            </h3>
+            <span className="text-sm text-gray-500 font-condensed">
+              • {currentMatch.country || currentMatch.league_country || 'World'}
             </span>
-          )}
+          </div>
         </div>
 
-        {/* Match Info - with smooth slide animation */}
-        <div className="relative overflow-hidden">
-          <div
-            className={`px-4 py-6 transition-all duration-300 ease-in-out ${isAnimating
-              ? slideDirection === 'next'
-                ? 'opacity-0 -translate-x-4'
-                : 'opacity-0 translate-x-4'
-              : 'opacity-100 translate-x-0'
-              }`}
-          >
+        {/* Match Preview Card */}
+        <div className={`transition-all duration-300 ${isAnimating ? 'opacity-50 scale-98' : 'opacity-100 scale-100'}`}>
+          <div className="px-4 py-6">
             <div className="flex items-center justify-between">
               {/* Home Team */}
               <div className="flex-1 text-center">
-                <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
+                <div className="flex flex-col items-center">
                   {currentMatch.home_team_logo ? (
                     <img
                       src={currentMatch.home_team_logo}
-                      alt={currentMatch.home_team_name}
-                      className="w-14 h-14 object-contain"
+                      alt={currentMatch.home_team_name || currentMatch.home_team}
+                      className="w-14 h-14 object-contain mb-2"
                       onError={(e) => { e.target.src = '/images/default-team.png'; }}
                     />
                   ) : (
-                    <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
+                    <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-2">
                       🏠
                     </div>
                   )}
@@ -467,40 +479,41 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
                 </p>
               </div>
 
-              {/* Score / Time */}
-              <div className="flex-shrink-0 px-4 text-center min-w-[100px]">
+              {/* Score/Time */}
+              <div className="flex-shrink-0 mx-4 text-center min-w-[80px]">
                 {matchDisplay.isLive ? (
-                  <>
-                    <p className="text-3xl font-bold text-gray-800 font-condensed">{matchDisplay.score}</p>
-                    <span className="inline-block px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-condensed animate-pulse">
-                      {matchDisplay.status}
-                    </span>
-                  </>
+                  <div>
+                    <div className="text-2xl font-bold text-red-600 font-condensed">{matchDisplay.score}</div>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                      <span className="text-xs text-red-600 font-condensed">{matchDisplay.status}</span>
+                    </div>
+                  </div>
                 ) : matchDisplay.isFinished ? (
-                  <>
-                    <p className="text-3xl font-bold text-gray-800 font-condensed">{matchDisplay.score}</p>
-                    <span className="text-sm text-gray-500 font-condensed">{matchDisplay.status}</span>
-                  </>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.score}</div>
+                    <span className="text-xs text-green-600 font-condensed">{matchDisplay.status}</span>
+                  </div>
                 ) : (
-                  <>
-                    <p className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.time}</p>
-                    <span className="text-sm text-gray-500 font-condensed">{matchDisplay.status}</span>
-                  </>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.time}</div>
+                    <span className="text-xs text-gray-500 font-condensed">{matchDisplay.status}</span>
+                  </div>
                 )}
               </div>
 
               {/* Away Team */}
               <div className="flex-1 text-center">
-                <div className="w-16 h-16 mx-auto mb-2 flex items-center justify-center">
+                <div className="flex flex-col items-center">
                   {currentMatch.away_team_logo ? (
                     <img
                       src={currentMatch.away_team_logo}
-                      alt={currentMatch.away_team_name}
-                      className="w-14 h-14 object-contain"
+                      alt={currentMatch.away_team_name || currentMatch.away_team}
+                      className="w-14 h-14 object-contain mb-2"
                       onError={(e) => { e.target.src = '/images/default-team.png'; }}
                     />
                   ) : (
-                    <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
+                    <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-2">
                       ✈️
                     </div>
                   )}
@@ -518,48 +531,64 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="font-semibold text-gray-800 font-condensed">Siapa yang akan menang?</p>
-              <p className="text-xs text-gray-500 font-condensed">Berikan votingmu!</p>
+              <p className="text-xs text-gray-500 font-condensed">
+                {hasVoted ? '✅ Kamu sudah voting!' : isMatchLive ? '🔴 Pertandingan sedang berlangsung' : isMatchFinished ? '✅ Pertandingan selesai' : 'Berikan votingmu!'}
+              </p>
             </div>
-            <ThumbsUp className="w-5 h-5 text-gray-400" />
+            {hasVoted ? (
+              <Check className="w-5 h-5 text-green-500" />
+            ) : (
+              <ThumbsUp className="w-5 h-5 text-gray-400" />
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => handleVote('home')}
-              className={`flex items-center justify-center gap-2 py-3 px-2 rounded-lg border-2 transition-all ${selectedVote === 'home'
+              disabled={!canVote || isSubmitting}
+              className={`flex items-center justify-center gap-2 py-3 px-2 rounded-lg border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${selectedVote === 'home'
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
             >
-              {currentMatch.home_team_logo ? (
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : currentMatch.home_team_logo ? (
                 <img src={currentMatch.home_team_logo} alt="" className="w-6 h-6 object-contain" />
               ) : (
                 <span>🏠</span>
               )}
+              {selectedVote === 'home' && <Check className="w-4 h-4 text-green-500" />}
             </button>
 
             <button
               onClick={() => handleVote('draw')}
-              className={`flex items-center justify-center py-3 px-2 rounded-lg border-2 transition-all font-bold font-condensed ${selectedVote === 'draw'
+              disabled={!canVote || isSubmitting}
+              className={`flex items-center justify-center py-3 px-2 rounded-lg border-2 transition-all font-bold font-condensed disabled:opacity-50 disabled:cursor-not-allowed ${selectedVote === 'draw'
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
             >
-              X
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'X'}
+              {selectedVote === 'draw' && <Check className="w-4 h-4 text-green-500 ml-1" />}
             </button>
 
             <button
               onClick={() => handleVote('away')}
-              className={`flex items-center justify-center gap-2 py-3 px-2 rounded-lg border-2 transition-all ${selectedVote === 'away'
+              disabled={!canVote || isSubmitting}
+              className={`flex items-center justify-center gap-2 py-3 px-2 rounded-lg border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${selectedVote === 'away'
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
             >
-              {currentMatch.away_team_logo ? (
+              {isSubmitting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : currentMatch.away_team_logo ? (
                 <img src={currentMatch.away_team_logo} alt="" className="w-6 h-6 object-contain" />
               ) : (
                 <span>✈️</span>
               )}
+              {selectedVote === 'away' && <Check className="w-4 h-4 text-green-500" />}
             </button>
           </div>
         </div>
