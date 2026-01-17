@@ -144,35 +144,137 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     return false;
   };
 
+  // ============================================================
+  // BIG MATCH / DERBY DEFINITIONS
+  // ============================================================
+  const bigMatchPairs = [
+    // England
+    { teams: ['manchester united', 'manchester city'], name: 'Manchester Derby' },
+    { teams: ['manchester united', 'liverpool'], name: 'North West Derby' },
+    { teams: ['liverpool', 'everton'], name: 'Merseyside Derby' },
+    { teams: ['arsenal', 'tottenham'], name: 'North London Derby' },
+    { teams: ['chelsea', 'tottenham'], name: 'London Derby' },
+    { teams: ['chelsea', 'arsenal'], name: 'London Derby' },
+    { teams: ['manchester united', 'arsenal'], name: 'Big Match' },
+    { teams: ['manchester united', 'chelsea'], name: 'Big Match' },
+    { teams: ['liverpool', 'manchester city'], name: 'Title Clash' },
+    // Spain
+    { teams: ['barcelona', 'real madrid'], name: 'El Clásico' },
+    { teams: ['atletico madrid', 'real madrid'], name: 'Madrid Derby' },
+    { teams: ['barcelona', 'atletico madrid'], name: 'Big Match' },
+    { teams: ['sevilla', 'real betis'], name: 'Seville Derby' },
+    // Italy
+    { teams: ['inter', 'milan', 'ac milan', 'inter milan'], name: 'Derby della Madonnina' },
+    { teams: ['juventus', 'inter', 'inter milan'], name: 'Derby d\'Italia' },
+    { teams: ['roma', 'lazio'], name: 'Derby della Capitale' },
+    { teams: ['juventus', 'milan', 'ac milan'], name: 'Big Match' },
+    { teams: ['napoli', 'juventus'], name: 'Big Match' },
+    // Germany
+    { teams: ['bayern munich', 'borussia dortmund', 'bayern', 'dortmund'], name: 'Der Klassiker' },
+    { teams: ['schalke', 'borussia dortmund', 'dortmund'], name: 'Revierderby' },
+    // France
+    { teams: ['paris saint-germain', 'marseille', 'psg', 'olympique marseille'], name: 'Le Classique' },
+    { teams: ['lyon', 'saint-etienne', 'olympique lyonnais'], name: 'Derby Rhône-Alpes' },
+  ];
+
+  const isBigMatch = (match) => {
+    const homeTeam = (match.home_team_name || match.home_team || '').toLowerCase();
+    const awayTeam = (match.away_team_name || match.away_team || '').toLowerCase();
+
+    for (const pair of bigMatchPairs) {
+      const teamPatterns = pair.teams.map(t => t.toLowerCase());
+      const homeMatches = teamPatterns.some(t => homeTeam.includes(t) || t.includes(homeTeam));
+      const awayMatches = teamPatterns.some(t => awayTeam.includes(t) || t.includes(awayTeam));
+
+      if (homeMatches && awayMatches) {
+        return { isBig: true, name: pair.name };
+      }
+    }
+    return { isBig: false, name: null };
+  };
+
   const getDisplayMatches = () => {
     let allTopLeagueMatches = [];
+    const leagueMatchCount = {}; // Track matches per league
+
+    // MAX matches per league (to ensure variety)
+    const MAX_PER_LEAGUE = 2;
 
     for (const leagueDef of leagueDefinitions) {
       const leagueMatches = matches.filter(match => matchBelongsToLeague(match, leagueDef));
 
       if (leagueMatches.length > 0) {
-        const matchesWithPriority = leagueMatches.map(m => ({
-          ...m,
-          _leaguePriority: leagueDef.priority,
-          _leagueName: leagueDef.name
-        }));
+        const matchesWithPriority = leagueMatches.map(m => {
+          const bigMatchInfo = isBigMatch(m);
+          return {
+            ...m,
+            _leaguePriority: leagueDef.priority,
+            _leagueName: leagueDef.name,
+            _isBigMatch: bigMatchInfo.isBig,
+            _bigMatchName: bigMatchInfo.name
+          };
+        });
 
         allTopLeagueMatches = [...allTopLeagueMatches, ...matchesWithPriority];
       }
     }
 
     if (allTopLeagueMatches.length > 0) {
+      // 1. Separate LIVE matches
       const liveMatches = allTopLeagueMatches.filter(m => {
         const status = (m.status_short || m.status || '').toUpperCase();
         return ['1H', '2H', 'HT', 'LIVE', 'ET', 'PT'].includes(status) || m.is_live;
       });
 
+      // If there are live matches, prioritize them
       if (liveMatches.length > 0) {
+        // Sort live matches: Big Match first, then by league priority
+        liveMatches.sort((a, b) => {
+          if (a._isBigMatch && !b._isBigMatch) return -1;
+          if (!a._isBigMatch && b._isBigMatch) return 1;
+          return a._leaguePriority - b._leaguePriority;
+        });
         return liveMatches.slice(0, 5);
       }
 
-      const sortedMatches = allTopLeagueMatches.sort((a, b) => a._leaguePriority - b._leaguePriority);
-      return sortedMatches.slice(0, 5);
+      // 2. For non-live: Sort by Big Match first, then league priority
+      allTopLeagueMatches.sort((a, b) => {
+        // Big matches always first
+        if (a._isBigMatch && !b._isBigMatch) return -1;
+        if (!a._isBigMatch && b._isBigMatch) return 1;
+        // Then by league priority
+        return a._leaguePriority - b._leaguePriority;
+      });
+
+      // 3. Pick matches with league limit to ensure variety
+      const selectedMatches = [];
+      const leagueCounts = {};
+
+      for (const match of allTopLeagueMatches) {
+        const leagueName = match._leagueName;
+
+        // Always include Big Matches (bypass league limit)
+        if (match._isBigMatch) {
+          if (!selectedMatches.find(m => m.id === match.id)) {
+            selectedMatches.push(match);
+            leagueCounts[leagueName] = (leagueCounts[leagueName] || 0) + 1;
+          }
+          continue;
+        }
+
+        // Apply league limit for regular matches
+        if ((leagueCounts[leagueName] || 0) < MAX_PER_LEAGUE) {
+          if (!selectedMatches.find(m => m.id === match.id)) {
+            selectedMatches.push(match);
+            leagueCounts[leagueName] = (leagueCounts[leagueName] || 0) + 1;
+          }
+        }
+
+        // Stop if we have enough
+        if (selectedMatches.length >= 5) break;
+      }
+
+      return selectedMatches.slice(0, 5);
     }
 
     return matches.slice(0, 5);
@@ -280,7 +382,12 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     if (!isAutoPlaying || displayMatches.length <= 1) return;
 
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % displayMatches.length);
+      setSlideDirection('next');
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % displayMatches.length);
+        setTimeout(() => setIsAnimating(false), 50);
+      }, 200);
     }, 8000);
 
     return () => clearInterval(interval);
@@ -289,36 +396,43 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const handlePrev = () => {
     if (isAnimating) return;
     setIsAutoPlaying(false);
-    setIsAnimating(true);
     setSlideDirection('prev');
+    setIsAnimating(true);
 
     setTimeout(() => {
       setCurrentIndex((prev) => (prev - 1 + displayMatches.length) % displayMatches.length);
-      setIsAnimating(false);
-    }, 300);
+      setTimeout(() => setIsAnimating(false), 50);
+    }, 200);
   };
 
   const handleNext = () => {
     if (isAnimating) return;
-    setIsAnimating(true);
     setSlideDirection('next');
+    setIsAnimating(true);
 
     setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % displayMatches.length);
-      setIsAnimating(false);
-    }, 300);
+      setTimeout(() => setIsAnimating(false), 50);
+    }, 200);
   };
 
   const goToIndex = (index) => {
     if (isAnimating || index === currentIndex) return;
     setIsAutoPlaying(false);
-    setIsAnimating(true);
     setSlideDirection(index > currentIndex ? 'next' : 'prev');
+    setIsAnimating(true);
 
     setTimeout(() => {
       setCurrentIndex(index);
-      setIsAnimating(false);
-    }, 300);
+      setTimeout(() => setIsAnimating(false), 50);
+    }, 200);
+  };
+
+  // Animation classes for smooth slide
+  const getSlideAnimationClass = () => {
+    if (!isAnimating) return 'translate-x-0 opacity-100';
+    if (slideDirection === 'next') return '-translate-x-4 opacity-0';
+    return 'translate-x-4 opacity-0';
   };
 
   // ============================================================
@@ -450,74 +564,85 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
           </div>
         </div>
 
-        {/* Match Preview Card */}
-        <div className={`transition-all duration-300 ${isAnimating ? 'opacity-50 scale-98' : 'opacity-100 scale-100'}`}>
-          <div className="px-4 py-6">
-            <div className="flex items-center justify-between">
-              {/* Home Team */}
-              <div className="flex-1 text-center">
-                <div className="flex flex-col items-center">
-                  {currentMatch.home_team_logo ? (
-                    <img
-                      src={currentMatch.home_team_logo}
-                      alt={currentMatch.home_team_name || currentMatch.home_team}
-                      className="w-14 h-14 object-contain mb-2"
-                      onError={(e) => { e.target.src = '/images/default-team.png'; }}
-                    />
+        {/* Match Preview Card - Smooth Slide Animation */}
+        <div className="overflow-hidden">
+          <div className={`transform transition-all duration-300 ease-out ${getSlideAnimationClass()}`}>
+            <div className="px-4 py-6">
+              <div className="flex items-center justify-between">
+                {/* Home Team */}
+                <div className="flex-1 text-center">
+                  <div className="flex flex-col items-center">
+                    {currentMatch.home_team_logo ? (
+                      <img
+                        src={currentMatch.home_team_logo}
+                        alt={currentMatch.home_team_name || currentMatch.home_team}
+                        className="w-14 h-14 object-contain mb-2"
+                        onError={(e) => { e.target.src = '/images/default-team.png'; }}
+                      />
+                    ) : (
+                      <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-2">
+                        🏠
+                      </div>
+                    )}
+                  </div>
+                  <p className="font-semibold text-gray-800 text-sm font-condensed line-clamp-2">
+                    {currentMatch.home_team_name || currentMatch.home_team || 'Home'}
+                  </p>
+                </div>
+
+                {/* Score/Time */}
+                <div className="flex-shrink-0 mx-4 text-center min-w-[80px]">
+                  {matchDisplay.isLive ? (
+                    <div>
+                      <div className="text-2xl font-bold text-red-600 font-condensed">{matchDisplay.score}</div>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                        <span className="text-xs text-red-600 font-condensed">{matchDisplay.status}</span>
+                      </div>
+                    </div>
+                  ) : matchDisplay.isFinished ? (
+                    <div>
+                      <div className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.score}</div>
+                      <span className="text-xs text-green-600 font-condensed">{matchDisplay.status}</span>
+                    </div>
                   ) : (
-                    <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-2">
-                      🏠
+                    <div>
+                      <div className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.time}</div>
+                      <span className="text-xs text-gray-500 font-condensed">{matchDisplay.status}</span>
                     </div>
                   )}
                 </div>
-                <p className="font-semibold text-gray-800 text-sm font-condensed line-clamp-2">
-                  {currentMatch.home_team_name || currentMatch.home_team || 'Home'}
-                </p>
-              </div>
 
-              {/* Score/Time */}
-              <div className="flex-shrink-0 mx-4 text-center min-w-[80px]">
-                {matchDisplay.isLive ? (
-                  <div>
-                    <div className="text-2xl font-bold text-red-600 font-condensed">{matchDisplay.score}</div>
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                      <span className="text-xs text-red-600 font-condensed">{matchDisplay.status}</span>
-                    </div>
+                {/* Away Team */}
+                <div className="flex-1 text-center">
+                  <div className="flex flex-col items-center">
+                    {currentMatch.away_team_logo ? (
+                      <img
+                        src={currentMatch.away_team_logo}
+                        alt={currentMatch.away_team_name || currentMatch.away_team}
+                        className="w-14 h-14 object-contain mb-2"
+                        onError={(e) => { e.target.src = '/images/default-team.png'; }}
+                      />
+                    ) : (
+                      <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-2">
+                        ✈️
+                      </div>
+                    )}
                   </div>
-                ) : matchDisplay.isFinished ? (
-                  <div>
-                    <div className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.score}</div>
-                    <span className="text-xs text-green-600 font-condensed">{matchDisplay.status}</span>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-2xl font-bold text-gray-800 font-condensed">{matchDisplay.time}</div>
-                    <span className="text-xs text-gray-500 font-condensed">{matchDisplay.status}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Away Team */}
-              <div className="flex-1 text-center">
-                <div className="flex flex-col items-center">
-                  {currentMatch.away_team_logo ? (
-                    <img
-                      src={currentMatch.away_team_logo}
-                      alt={currentMatch.away_team_name || currentMatch.away_team}
-                      className="w-14 h-14 object-contain mb-2"
-                      onError={(e) => { e.target.src = '/images/default-team.png'; }}
-                    />
-                  ) : (
-                    <div className="w-14 h-14 bg-gray-200 rounded-full flex items-center justify-center text-2xl mb-2">
-                      ✈️
-                    </div>
-                  )}
+                  <p className="font-semibold text-gray-800 text-sm font-condensed line-clamp-2">
+                    {currentMatch.away_team_name || currentMatch.away_team || 'Away'}
+                  </p>
                 </div>
-                <p className="font-semibold text-gray-800 text-sm font-condensed line-clamp-2">
-                  {currentMatch.away_team_name || currentMatch.away_team || 'Away'}
-                </p>
               </div>
+
+              {/* Big Match Badge */}
+              {currentMatch._isBigMatch && (
+                <div className="mt-3 flex justify-center">
+                  <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+                    🔥 {currentMatch._bigMatchName || 'Big Match'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
