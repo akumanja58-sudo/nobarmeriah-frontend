@@ -42,8 +42,14 @@ export default function SofaHeader({
   }, []);
 
   // Handle Logout
-  const handleLogout = async () => {
+  const handleLogout = async (e) => {
+    // Prevent event bubbling yang bisa close dropdown
+    e?.preventDefault();
+    e?.stopPropagation();
+
     try {
+      console.log('🚪 Logging out...');
+
       // Clear session from active_sessions table
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) {
@@ -54,16 +60,23 @@ export default function SofaHeader({
       }
 
       // Sign out from Supabase
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('❌ Logout error:', error);
+        return;
+      }
+
+      console.log('✅ Logged out successfully');
 
       // Close dropdown
       setShowDropdown(false);
 
-      // Redirect to home
-      router.push('/');
-      router.refresh();
+      // Force refresh to clear all state
+      window.location.href = '/';
+
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
     }
   };
 
@@ -176,10 +189,11 @@ export default function SofaHeader({
 
                         {/* Keluar */}
                         <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                          type="button"
+                          onMouseDown={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
                         >
-                          <LogOut className="w-5 h-5 text-gray-500" />
+                          <LogOut className="w-5 h-5 text-red-500" />
                           <span className="font-medium">Keluar</span>
                         </button>
                       </div>
