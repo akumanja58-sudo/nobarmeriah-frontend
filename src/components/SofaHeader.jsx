@@ -47,9 +47,9 @@ export default function SofaHeader({
     e?.preventDefault();
     e?.stopPropagation();
 
-    try {
-      console.log('🚪 Logging out...');
+    console.log('🚪 Logging out...');
 
+    try {
       // Clear session from active_sessions table
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) {
@@ -60,23 +60,21 @@ export default function SofaHeader({
       }
 
       // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.error('❌ Logout error:', error);
-        return;
-      }
+      await supabase.auth.signOut();
 
       console.log('✅ Logged out successfully');
-
-      // Close dropdown
-      setShowDropdown(false);
-
-      // Force refresh to clear all state
-      window.location.href = '/';
-
     } catch (error) {
       console.error('❌ Logout error:', error);
+    } finally {
+      // ALWAYS redirect regardless of success/error
+      setShowDropdown(false);
+
+      // Clear local storage manually just in case
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-localhost-auth-token');
+
+      // Force full page reload to clear all state
+      window.location.replace('/');
     }
   };
 
