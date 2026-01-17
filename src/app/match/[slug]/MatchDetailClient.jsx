@@ -34,9 +34,34 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
     const [username, setUsername] = useState('');
     const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-    // UI State - Default 'rincian' untuk mobile, 'lineup' untuk desktop
-    const [activeTab, setActiveTab] = useState('rincian');
+    // ============================================================
+    // DETECT DEVICE - Desktop vs Mobile
+    // ============================================================
+    const [isDesktop, setIsDesktop] = useState(false);
+
+    useEffect(() => {
+        // Check if desktop on mount
+        const checkDesktop = () => {
+            setIsDesktop(window.innerWidth >= 1024); // lg breakpoint
+        };
+
+        checkDesktop();
+        window.addEventListener('resize', checkDesktop);
+        return () => window.removeEventListener('resize', checkDesktop);
+    }, []);
+
+    // UI State - Default 'lineup' untuk desktop, 'rincian' untuk mobile
+    const [activeTab, setActiveTab] = useState('rincian'); // Will be updated by useEffect
     const [showProfile, setShowProfile] = useState(false);
+
+    // Set default tab based on device
+    useEffect(() => {
+        if (isDesktop) {
+            setActiveTab('lineup');
+        } else {
+            setActiveTab('rincian');
+        }
+    }, [isDesktop]);
 
     // ============================================================
     // USE MATCH DETAIL HOOK - Clean data fetching!
@@ -127,6 +152,7 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
         switch (activeTab) {
             case 'rincian':
                 // Tab Rincian - isinya sidebar content (Mobile Only)
+                // Di Desktop, tab ini disembunyikan karena sidebar kiri sudah ada
                 return (
                     <div className="space-y-4">
                         {/* 1. Odds dari API-Football */}
@@ -325,7 +351,7 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                             {/* 1. Odds dari API-Football */}
                             <MatchOdds match={match} />
 
-                            {/* 2. Prediksi Voting (Random untuk sekarang) */}
+                            {/* 2. Prediksi Voting */}
                             <MatchVote
                                 match={match}
                                 user={user}

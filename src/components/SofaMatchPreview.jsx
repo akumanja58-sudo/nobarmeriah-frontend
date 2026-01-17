@@ -252,11 +252,7 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
           email: user.email,
           match_id: matchId,
           predicted_result: vote,
-          home_team: currentMatch.home_team_name || currentMatch.home_team,
-          away_team: currentMatch.away_team_name || currentMatch.away_team,
-          league_name: currentMatch.league_name || currentMatch.competition || currentMatch.league,
-          status: 'pending',
-          created_at: new Date().toISOString()
+          status: 'pending'
         }]);
 
       if (error) {
