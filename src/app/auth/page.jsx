@@ -1,12 +1,12 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
 // Force dynamic rendering - skip prerender
 export const dynamic = 'force-dynamic';
 
 // Disable SSR for Auth component
-const Auth = dynamic(() => import('@/components/Auth'), { 
+const Auth = dynamicImport(() => import('@/components/Auth'), { 
     ssr: false,
     loading: () => (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F7FEE7] to-[#D9F99D]">
