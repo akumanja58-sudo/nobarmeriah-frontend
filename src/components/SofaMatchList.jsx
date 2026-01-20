@@ -3,6 +3,212 @@
 import { useState } from 'react';
 import { Star, ChevronDown, ChevronUp } from 'lucide-react';
 
+// ============================================================
+// LOGO KHUSUS UNTUK TOURNAMENT INTERNASIONAL
+// ============================================================
+const INTERNATIONAL_LOGOS = {
+  // UEFA Competitions
+  'uefa champions league': 'https://media.api-sports.io/football/leagues/2.png',
+  'champions league': 'https://media.api-sports.io/football/leagues/2.png',
+  'uefa europa league': 'https://media.api-sports.io/football/leagues/3.png',
+  'europa league': 'https://media.api-sports.io/football/leagues/3.png',
+  'uefa europa conference league': 'https://media.api-sports.io/football/leagues/848.png',
+  'conference league': 'https://media.api-sports.io/football/leagues/848.png',
+  'uefa nations league': 'https://media.api-sports.io/football/leagues/5.png',
+  'nations league': 'https://media.api-sports.io/football/leagues/5.png',
+  'uefa super cup': 'https://media.api-sports.io/football/leagues/531.png',
+  'euro championship': 'https://media.api-sports.io/football/leagues/4.png',
+  'uefa euro': 'https://media.api-sports.io/football/leagues/4.png',
+
+  // FIFA Competitions
+  'fifa world cup': 'https://media.api-sports.io/football/leagues/1.png',
+  'world cup': 'https://media.api-sports.io/football/leagues/1.png',
+  'fifa club world cup': 'https://media.api-sports.io/football/leagues/15.png',
+  'club world cup': 'https://media.api-sports.io/football/leagues/15.png',
+
+  // Continental - Asia
+  'afc champions league': 'https://media.api-sports.io/football/leagues/17.png',
+  'afc cup': 'https://media.api-sports.io/football/leagues/18.png',
+  'afc asian cup': 'https://media.api-sports.io/football/leagues/7.png',
+  'asian cup': 'https://media.api-sports.io/football/leagues/7.png',
+  'afc u23 asian cup': 'https://media.api-sports.io/football/leagues/7.png',
+
+  // Continental - South America
+  'copa libertadores': 'https://media.api-sports.io/football/leagues/13.png',
+  'conmebol libertadores': 'https://media.api-sports.io/football/leagues/13.png',
+  'copa sudamericana': 'https://media.api-sports.io/football/leagues/11.png',
+  'conmebol sudamericana': 'https://media.api-sports.io/football/leagues/11.png',
+  'copa america': 'https://media.api-sports.io/football/leagues/9.png',
+
+  // Continental - Africa
+  'africa cup of nations': 'https://media.api-sports.io/football/leagues/6.png',
+  'afcon': 'https://media.api-sports.io/football/leagues/6.png',
+  'caf champions league': 'https://media.api-sports.io/football/leagues/12.png',
+
+  // Continental - North America
+  'concacaf champions league': 'https://media.api-sports.io/football/leagues/16.png',
+  'gold cup': 'https://media.api-sports.io/football/leagues/22.png',
+  'concacaf gold cup': 'https://media.api-sports.io/football/leagues/22.png',
+
+  // Friendlies
+  'friendlies': 'https://media.api-sports.io/football/leagues/10.png',
+  'club friendlies': 'https://media.api-sports.io/football/leagues/667.png',
+  'international friendlies': 'https://media.api-sports.io/football/leagues/10.png',
+};
+
+// ============================================================
+// BENDERA NEGARA (FALLBACK KALAU API GAK KASIH)
+// ============================================================
+const COUNTRY_FLAGS = {
+  // Europe
+  'england': 'https://media.api-sports.io/flags/gb.svg',
+  'spain': 'https://media.api-sports.io/flags/es.svg',
+  'italy': 'https://media.api-sports.io/flags/it.svg',
+  'germany': 'https://media.api-sports.io/flags/de.svg',
+  'france': 'https://media.api-sports.io/flags/fr.svg',
+  'netherlands': 'https://media.api-sports.io/flags/nl.svg',
+  'portugal': 'https://media.api-sports.io/flags/pt.svg',
+  'belgium': 'https://media.api-sports.io/flags/be.svg',
+  'turkey': 'https://media.api-sports.io/flags/tr.svg',
+  'scotland': 'https://media.api-sports.io/flags/gb.svg',
+  'greece': 'https://media.api-sports.io/flags/gr.svg',
+  'russia': 'https://media.api-sports.io/flags/ru.svg',
+  'ukraine': 'https://media.api-sports.io/flags/ua.svg',
+  'poland': 'https://media.api-sports.io/flags/pl.svg',
+  'austria': 'https://media.api-sports.io/flags/at.svg',
+  'switzerland': 'https://media.api-sports.io/flags/ch.svg',
+  'denmark': 'https://media.api-sports.io/flags/dk.svg',
+  'sweden': 'https://media.api-sports.io/flags/se.svg',
+  'norway': 'https://media.api-sports.io/flags/no.svg',
+  'finland': 'https://media.api-sports.io/flags/fi.svg',
+  'croatia': 'https://media.api-sports.io/flags/hr.svg',
+  'serbia': 'https://media.api-sports.io/flags/rs.svg',
+  'romania': 'https://media.api-sports.io/flags/ro.svg',
+  'hungary': 'https://media.api-sports.io/flags/hu.svg',
+  'czech-republic': 'https://media.api-sports.io/flags/cz.svg',
+  'slovakia': 'https://media.api-sports.io/flags/sk.svg',
+  'bulgaria': 'https://media.api-sports.io/flags/bg.svg',
+  'cyprus': 'https://media.api-sports.io/flags/cy.svg',
+  'ireland': 'https://media.api-sports.io/flags/ie.svg',
+  'wales': 'https://media.api-sports.io/flags/gb.svg',
+
+  // Asia
+  'indonesia': 'https://media.api-sports.io/flags/id.svg',
+  'japan': 'https://media.api-sports.io/flags/jp.svg',
+  'south-korea': 'https://media.api-sports.io/flags/kr.svg',
+  'korea': 'https://media.api-sports.io/flags/kr.svg',
+  'china': 'https://media.api-sports.io/flags/cn.svg',
+  'saudi-arabia': 'https://media.api-sports.io/flags/sa.svg',
+  'uae': 'https://media.api-sports.io/flags/ae.svg',
+  'qatar': 'https://media.api-sports.io/flags/qa.svg',
+  'iran': 'https://media.api-sports.io/flags/ir.svg',
+  'thailand': 'https://media.api-sports.io/flags/th.svg',
+  'vietnam': 'https://media.api-sports.io/flags/vn.svg',
+  'malaysia': 'https://media.api-sports.io/flags/my.svg',
+  'singapore': 'https://media.api-sports.io/flags/sg.svg',
+  'india': 'https://media.api-sports.io/flags/in.svg',
+  'australia': 'https://media.api-sports.io/flags/au.svg',
+  'syria': 'https://media.api-sports.io/flags/sy.svg',
+  'kuwait': 'https://media.api-sports.io/flags/kw.svg',
+  'bahrain': 'https://media.api-sports.io/flags/bh.svg',
+
+  // Americas
+  'usa': 'https://media.api-sports.io/flags/us.svg',
+  'brazil': 'https://media.api-sports.io/flags/br.svg',
+  'argentina': 'https://media.api-sports.io/flags/ar.svg',
+  'mexico': 'https://media.api-sports.io/flags/mx.svg',
+  'colombia': 'https://media.api-sports.io/flags/co.svg',
+  'chile': 'https://media.api-sports.io/flags/cl.svg',
+  'peru': 'https://media.api-sports.io/flags/pe.svg',
+  'ecuador': 'https://media.api-sports.io/flags/ec.svg',
+  'uruguay': 'https://media.api-sports.io/flags/uy.svg',
+  'paraguay': 'https://media.api-sports.io/flags/py.svg',
+  'venezuela': 'https://media.api-sports.io/flags/ve.svg',
+  'canada': 'https://media.api-sports.io/flags/ca.svg',
+
+  // Africa
+  'egypt': 'https://media.api-sports.io/flags/eg.svg',
+  'morocco': 'https://media.api-sports.io/flags/ma.svg',
+  'nigeria': 'https://media.api-sports.io/flags/ng.svg',
+  'south-africa': 'https://media.api-sports.io/flags/za.svg',
+  'ghana': 'https://media.api-sports.io/flags/gh.svg',
+  'cameroon': 'https://media.api-sports.io/flags/cm.svg',
+  'senegal': 'https://media.api-sports.io/flags/sn.svg',
+  'tunisia': 'https://media.api-sports.io/flags/tn.svg',
+  'algeria': 'https://media.api-sports.io/flags/dz.svg',
+  'ethiopia': 'https://media.api-sports.io/flags/et.svg',
+
+  // Others
+  'world': null,
+  'europe': null,
+  'asia': null,
+  'africa': null,
+};
+
+// Function untuk cek apakah liga internasional dan dapet logonya
+function getInternationalLogo(leagueName) {
+  if (!leagueName) return null;
+  const nameLower = leagueName.toLowerCase().trim();
+
+  // EXCLUDE - Liga domestik yang namanya mirip international
+  const DOMESTIC_LEAGUES = [
+    'championship',
+    'league one',
+    'league two',
+    'premier league',
+    'la liga',
+    'serie a',
+    'serie b',
+    'bundesliga',
+    'ligue 1',
+    'ligue 2',
+    'eredivisie',
+    'primeira liga',
+    'liga portugal',
+    'super lig',
+    'a-league',
+    'j-league',
+    'k league',
+    'liga 1',
+    'mls',
+  ];
+
+  // Cek apakah ini liga domestik - SKIP kalau iya
+  for (const domestic of DOMESTIC_LEAGUES) {
+    if (nameLower === domestic || nameLower.startsWith(domestic + ' ')) {
+      return null;
+    }
+  }
+
+  // Cek exact match dulu
+  if (INTERNATIONAL_LOGOS[nameLower]) {
+    return INTERNATIONAL_LOGOS[nameLower];
+  }
+
+  // Cek partial match - tapi harus FULL WORD match
+  for (const [key, logo] of Object.entries(INTERNATIONAL_LOGOS)) {
+    // Hanya match kalau key ada di dalam nama liga sebagai kata lengkap
+    const keyWords = key.split(' ');
+    const nameWords = nameLower.split(' ');
+
+    // Cek apakah SEMUA kata dari key ada di nama liga
+    const allWordsMatch = keyWords.every(kw => nameWords.some(nw => nw.includes(kw)));
+
+    if (allWordsMatch && keyWords.length >= 2) {
+      return logo;
+    }
+  }
+
+  return null;
+}
+
+// Function untuk dapet bendera negara
+function getCountryFlag(country) {
+  if (!country) return null;
+  const countryLower = country.toLowerCase().replace(/ /g, '-');
+  return COUNTRY_FLAGS[countryLower] || null;
+}
+
 export default function SofaMatchList({ matches = [], onMatchClick, selectedMatch }) {
   const [expandedLeagues, setExpandedLeagues] = useState({});
   const [favoriteMatches, setFavoriteMatches] = useState([]);
@@ -321,17 +527,43 @@ export default function SofaMatchList({ matches = [], onMatchClick, selectedMatc
             onClick={() => toggleLeague(key)}
           >
             <div className="flex items-center gap-3">
-              {/* Flag dari API atau emoji fallback */}
-              {group.leagueFlag ? (
-                <img
-                  src={group.leagueFlag}
-                  alt={group.country}
-                  className="w-5 h-4 object-cover rounded-sm"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              ) : (
-                <span className="text-lg">🌍</span>
-              )}
+              {/* Logo Tournament Internasional ATAU Bendera Negara */}
+              {(() => {
+                const internationalLogo = getInternationalLogo(group.league);
+                const countryFlag = group.leagueFlag || getCountryFlag(group.country);
+
+                if (internationalLogo) {
+                  // Tournament internasional - pake logo khusus
+                  return (
+                    <img
+                      src={internationalLogo}
+                      alt={group.league}
+                      className="w-5 h-5 object-contain"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '';
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  );
+                } else if (countryFlag) {
+                  // Liga negara - pake bendera dari API atau mapping
+                  return (
+                    <img
+                      src={countryFlag}
+                      alt={group.country}
+                      className="w-5 h-4 object-cover rounded-sm"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  );
+                } else {
+                  // Fallback emoji
+                  return <span className="text-lg">🌍</span>;
+                }
+              })()}
               <div>
                 <p className="text-xs text-gray-500 font-condensed">{translateCountry(group.country)}</p>
                 <p className="text-sm font-semibold text-gray-800 font-condensed">{group.league}</p>
