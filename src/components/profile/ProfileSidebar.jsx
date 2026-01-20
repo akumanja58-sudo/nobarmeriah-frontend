@@ -99,29 +99,61 @@ const ProfileSidebar = ({ profile, onEditProfile, isMobile = false }) => {
     const handleLogout = async () => {
         setShowMoreMenu(false);
 
-        try {
-            // Clear session from active_sessions table
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user?.email) {
-                await supabase
+        console.log('🚪 Logging out...');
+
+        // Get email - dari localStorage ATAU session (fallback)
+        let userEmail = null;
+
+        // Coba ambil dari localStorage dulu (lebih reliable)
+        userEmail = localStorage.getItem('user_email');
+
+        // Kalau gak ada di localStorage, coba dari session
+        if (!userEmail) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                userEmail = session?.user?.email;
+            } catch (err) {
+                console.log('Session error:', err);
+            }
+        }
+
+        console.log('📧 Logout email:', userEmail);
+
+        // PRIORITAS 1: Hapus active_sessions (PENTING biar bisa login lagi)
+        if (userEmail) {
+            try {
+                const { error } = await supabase
                     .from('active_sessions')
                     .delete()
-                    .eq('account_email', session.user.email.toLowerCase());
+                    .eq('account_email', userEmail.toLowerCase());
+
+                if (error) {
+                    console.error('❌ Failed to delete active_session:', error);
+                } else {
+                    console.log('✅ Active session cleared for:', userEmail);
+                }
+            } catch (err) {
+                console.error('❌ Error deleting active_session:', err);
             }
-
-            // Sign out from Supabase
-            await supabase.auth.signOut();
-
-            // Clear local storage
-            localStorage.removeItem('supabase.auth.token');
-            localStorage.removeItem('sb-localhost-auth-token');
-
-            // Force redirect
-            window.location.replace('/');
-        } catch (error) {
-            console.error('Logout error:', error);
-            window.location.replace('/');
         }
+
+        // PRIORITAS 2: Sign out dari Supabase
+        try {
+            await supabase.auth.signOut();
+            console.log('✅ Signed out from Supabase');
+        } catch (err) {
+            console.log('SignOut error (ignored):', err);
+        }
+
+        // PRIORITAS 3: Clear ALL storage & redirect
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('sb-localhost-auth-token');
+        localStorage.removeItem('sb-vqbwvpjmrsjjcidlzbfz-auth-token');
+        localStorage.removeItem('user_email');
+        sessionStorage.clear();
+
+        // Force redirect
+        window.location.href = '/';
     };
 
     // Handle delete account

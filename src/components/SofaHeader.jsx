@@ -48,34 +48,61 @@ export default function SofaHeader({
     e?.stopPropagation();
 
     console.log('🚪 Logging out...');
+    setShowDropdown(false);
 
-    try {
-      // Clear session from active_sessions table
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email) {
-        await supabase
+    // Get email - dari session ATAU localStorage (fallback kalau session expired)
+    let userEmail = null;
+
+    // Coba ambil dari localStorage dulu (lebih reliable)
+    userEmail = localStorage.getItem('user_email');
+
+    // Kalau gak ada di localStorage, coba dari session
+    if (!userEmail) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        userEmail = session?.user?.email;
+      } catch (err) {
+        console.log('Session error:', err);
+      }
+    }
+
+    console.log('📧 Logout email:', userEmail);
+
+    // PRIORITAS 1: Hapus active_sessions (PENTING biar bisa login lagi)
+    if (userEmail) {
+      try {
+        const { error } = await supabase
           .from('active_sessions')
           .delete()
-          .eq('account_email', session.user.email.toLowerCase());
+          .eq('account_email', userEmail.toLowerCase());
+
+        if (error) {
+          console.error('❌ Failed to delete active_session:', error);
+        } else {
+          console.log('✅ Active session cleared for:', userEmail);
+        }
+      } catch (err) {
+        console.error('❌ Error deleting active_session:', err);
       }
-
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-
-      console.log('✅ Logged out successfully');
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-    } finally {
-      // ALWAYS redirect regardless of success/error
-      setShowDropdown(false);
-
-      // Clear local storage manually just in case
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('sb-localhost-auth-token');
-
-      // Force full page reload to clear all state
-      window.location.replace('/');
     }
+
+    // PRIORITAS 2: Sign out dari Supabase
+    try {
+      await supabase.auth.signOut();
+      console.log('✅ Signed out from Supabase');
+    } catch (err) {
+      console.log('SignOut error (ignored):', err);
+    }
+
+    // PRIORITAS 3: Clear ALL storage & redirect
+    localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('sb-localhost-auth-token');
+    localStorage.removeItem('sb-vqbwpjmrsjjcidlzbfz-auth-token');
+    localStorage.removeItem('user_email');
+    sessionStorage.clear();
+
+    // Force redirect
+    window.location.href = '/';
   };
 
   // Sports categories dengan badge count
@@ -188,7 +215,36 @@ export default function SofaHeader({
                         {/* Keluar */}
                         <button
                           type="button"
-                          onMouseDown={handleLogout}
+                          onClick={() => {
+                            // Close dropdown
+                            setShowDropdown(false);
+
+                            // Get email
+                            const userEmail = user?.email;
+                            console.log('📧 Logout email:', userEmail);
+
+                            // Clear session via BACKEND API (bypass Supabase auth)
+                            if (userEmail) {
+                              fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/logout`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: userEmail })
+                              })
+                                .then(res => res.json())
+                                .then(data => console.log('✅ Session cleared:', data))
+                                .catch(err => console.log('Session clear error:', err));
+                            }
+
+                            // Sign out (fire & forget)
+                            supabase.auth.signOut().catch(() => { });
+
+                            // Clear storage
+                            localStorage.clear();
+                            sessionStorage.clear();
+
+                            // Redirect
+                            window.location.href = '/';
+                          }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
                         >
                           <LogOut className="w-5 h-5 text-red-500" />

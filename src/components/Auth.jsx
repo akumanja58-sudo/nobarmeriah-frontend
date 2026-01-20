@@ -110,6 +110,10 @@ const Auth = () => {
                 return false;
             }
 
+            // SIMPAN EMAIL ke localStorage untuk logout nanti
+            localStorage.setItem('user_email', email.toLowerCase());
+            console.log('✅ Email saved to localStorage:', email);
+
             return true;
 
         } catch (err) {
