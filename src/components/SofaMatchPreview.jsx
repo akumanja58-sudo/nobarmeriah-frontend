@@ -291,9 +291,9 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const fetchTopPlayers = async () => {
     setIsLoadingPlayers(true);
     try {
-      // Fetch from backend API
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/matches/top-players?limit=3`);
+      // Fetch from backend API - 5 pemain dengan rating tertinggi
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/matches/top-players?limit=5`);
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -900,9 +900,9 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
 
           <div className="px-4 pb-3 space-y-3">
             {isLoadingPlayers ? (
-              // Loading skeleton
+              // Loading skeleton - 5 items
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className="flex items-center gap-3 animate-pulse">
                     <div className="w-4 h-4 bg-gray-200 rounded"></div>
                     <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
