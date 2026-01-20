@@ -5,6 +5,140 @@ import { TrendingUp, Target, Shield, Zap, BarChart3 } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
+// ============================================================
+// RADAR CHART COMPONENT
+// ============================================================
+function RadarChart({ homeStats, awayStats, homeTeam, awayTeam, homeLogo, awayLogo }) {
+  const categories = [
+    { key: 'attack', label: 'Serangan' },
+    { key: 'defense', label: 'Pertahanan' },
+    { key: 'form', label: 'Form' },
+    { key: 'h2h', label: 'H2H' },
+    { key: 'goals', label: 'Gol' },
+    { key: 'total', label: 'Total' },
+  ];
+
+  // Parse percentage ke number
+  const parsePercent = (val) => parseInt((val || '0%').replace('%', '')) || 0;
+
+  // Hitung koordinat untuk radar chart
+  const centerX = 120;
+  const centerY = 120;
+  const maxRadius = 80;
+  const angleStep = (2 * Math.PI) / categories.length;
+  const startAngle = -Math.PI / 2; // Start dari atas
+
+  // Generate points untuk polygon
+  const getPolygonPoints = (stats) => {
+    return categories.map((cat, i) => {
+      const value = parsePercent(stats[cat.key]) / 100;
+      const angle = startAngle + i * angleStep;
+      const radius = value * maxRadius;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      return `${x},${y}`;
+    }).join(' ');
+  };
+
+  // Generate grid lines
+  const gridLevels = [0.25, 0.5, 0.75, 1];
+
+  // Generate axis lines dan labels
+  const axisLines = categories.map((cat, i) => {
+    const angle = startAngle + i * angleStep;
+    const x2 = centerX + maxRadius * Math.cos(angle);
+    const y2 = centerY + maxRadius * Math.sin(angle);
+    const labelX = centerX + (maxRadius + 20) * Math.cos(angle);
+    const labelY = centerY + (maxRadius + 20) * Math.sin(angle);
+    return { x1: centerX, y1: centerY, x2, y2, labelX, labelY, label: cat.label };
+  });
+
+  return (
+    <div className="p-4 border-b border-gray-100">
+      <p className="text-xs text-gray-500 mb-3 font-condensed flex items-center gap-1">
+        📊 Perbandingan Kekuatan
+      </p>
+
+      {/* Legend */}
+      <div className="flex justify-center gap-6 mb-3">
+        <div className="flex items-center gap-2">
+          {homeLogo && <img src={homeLogo} alt={homeTeam} className="w-4 h-4 object-contain" />}
+          <span className="text-xs font-condensed text-green-600 font-medium">{homeTeam}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {awayLogo && <img src={awayLogo} alt={awayTeam} className="w-4 h-4 object-contain" />}
+          <span className="text-xs font-condensed text-blue-600 font-medium">{awayTeam}</span>
+        </div>
+      </div>
+
+      {/* Radar Chart SVG */}
+      <div className="flex justify-center">
+        <svg width="240" height="240" viewBox="0 0 240 240">
+          {/* Grid circles */}
+          {gridLevels.map((level, i) => (
+            <polygon
+              key={i}
+              points={categories.map((_, idx) => {
+                const angle = startAngle + idx * angleStep;
+                const radius = level * maxRadius;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                return `${x},${y}`;
+              }).join(' ')}
+              fill="none"
+              stroke="#E5E7EB"
+              strokeWidth="1"
+            />
+          ))}
+
+          {/* Axis lines */}
+          {axisLines.map((axis, i) => (
+            <line
+              key={i}
+              x1={axis.x1}
+              y1={axis.y1}
+              x2={axis.x2}
+              y2={axis.y2}
+              stroke="#E5E7EB"
+              strokeWidth="1"
+            />
+          ))}
+
+          {/* Home team polygon */}
+          <polygon
+            points={getPolygonPoints(homeStats)}
+            fill="rgba(34, 197, 94, 0.3)"
+            stroke="#22C55E"
+            strokeWidth="2"
+          />
+
+          {/* Away team polygon */}
+          <polygon
+            points={getPolygonPoints(awayStats)}
+            fill="rgba(59, 130, 246, 0.3)"
+            stroke="#3B82F6"
+            strokeWidth="2"
+          />
+
+          {/* Labels */}
+          {axisLines.map((axis, i) => (
+            <text
+              key={i}
+              x={axis.labelX}
+              y={axis.labelY}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="text-[9px] fill-gray-500 font-condensed"
+            >
+              {axis.label}
+            </text>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export default function MatchPrediction({ match }) {
   const [predictions, setPredictions] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -285,6 +419,32 @@ export default function MatchPrediction({ match }) {
           </p>
         )}
       </div>
+
+      {/* Radar Chart - Perbandingan Kekuatan */}
+      {predictions.comparison && (
+        <RadarChart
+          homeStats={{
+            attack: predictions.comparison?.att?.home || predictions.comparison?.attack?.home,
+            defense: predictions.comparison?.def?.home || predictions.comparison?.defense?.home,
+            form: predictions.comparison?.form?.home,
+            h2h: predictions.comparison?.h2h?.home,
+            goals: predictions.comparison?.goals?.home || predictions.comparison?.poisson_distribution?.home,
+            total: predictions.comparison?.total?.home,
+          }}
+          awayStats={{
+            attack: predictions.comparison?.att?.away || predictions.comparison?.attack?.away,
+            defense: predictions.comparison?.def?.away || predictions.comparison?.defense?.away,
+            form: predictions.comparison?.form?.away,
+            h2h: predictions.comparison?.h2h?.away,
+            goals: predictions.comparison?.goals?.away || predictions.comparison?.poisson_distribution?.away,
+            total: predictions.comparison?.total?.away,
+          }}
+          homeTeam={homeTeam}
+          awayTeam={awayTeam}
+          homeLogo={homeLogo}
+          awayLogo={awayLogo}
+        />
+      )}
 
       {/* Team Comparison */}
       <div className="p-4">
