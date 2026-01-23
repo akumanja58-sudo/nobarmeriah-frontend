@@ -15,6 +15,7 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const [isAnimating, setIsAnimating] = useState(false);
   const [topPlayers, setTopPlayers] = useState([]);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // ============================================================
   // LIGA DEFINITIONS - Spesifik per negara
@@ -288,12 +289,12 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   // ============================================================
   // FETCH TOP RATED PLAYERS FROM BACKEND
   // ============================================================
-  const fetchTopPlayers = async () => {
+  const fetchTopPlayers = async (limit = 5) => {
     setIsLoadingPlayers(true);
     try {
-      // Fetch from backend API - 5 pemain dengan rating tertinggi
+      // Fetch from backend API
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/matches/top-players?limit=5`);
+      const response = await fetch(`${apiUrl}/api/matches/top-players?limit=${limit}`);
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -312,6 +313,19 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
       setTopPlayers([]);
     } finally {
       setIsLoadingPlayers(false);
+    }
+  };
+
+  // Toggle expand/collapse top players
+  const handleToggleExpand = async () => {
+    if (isExpanded) {
+      // Collapse - load 5 pemain
+      setIsExpanded(false);
+      await fetchTopPlayers(5);
+    } else {
+      // Expand - load 10 pemain
+      setIsExpanded(true);
+      await fetchTopPlayers(10);
     }
   };
 
@@ -946,7 +960,10 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
 
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-800 text-sm font-condensed truncate">{player.name}</p>
-                    <p className="text-xs text-gray-500 font-condensed">{player.position}</p>
+                    <p className="text-xs text-gray-500 font-condensed">
+                      {player.position}
+                      {player.team && <span className="text-gray-400"> • {player.team}</span>}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -966,21 +983,16 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
           </div>
 
           <div className="px-4 pb-4">
-            <button className="w-full text-center text-blue-600 text-sm font-condensed hover:underline">
-              Selengkapnya ▼
-            </button>
+            {topPlayers.length > 0 && (
+              <button
+                onClick={handleToggleExpand}
+                disabled={isLoadingPlayers}
+                className="w-full text-center text-blue-600 text-sm font-condensed hover:underline disabled:opacity-50"
+              >
+                {isLoadingPlayers ? 'Memuat...' : isExpanded ? 'Tampilkan lebih sedikit ▲' : 'Selengkapnya ▼'}
+              </button>
+            )}
           </div>
-        </div>
-
-        {/* View Match Detail Button */}
-        <div className="px-4 pb-4">
-          <button
-            onClick={() => onMatchClick?.(currentMatch)}
-            className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 font-condensed"
-          >
-            Lihat Detail Pertandingan
-            <ExternalLink className="w-4 h-4" />
-          </button>
         </div>
       </div>
 

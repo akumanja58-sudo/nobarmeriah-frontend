@@ -8,18 +8,22 @@ import { supabase } from '@/utils/supabaseClient';
 const ProfileChallenge = ({ profile, stats, isMobile = false }) => {
     const router = useRouter();
     const [leaderboard, setLeaderboard] = useState([]);
+    const [streakLeaders, setStreakLeaders] = useState([]);
+    const [accuracyLeaders, setAccuracyLeaders] = useState([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
 
     useEffect(() => {
         fetchLeaderboard();
+        fetchStreakLeaders();
+        fetchAccuracyLeaders();
     }, []);
 
     const fetchLeaderboard = async () => {
         try {
             const { data } = await supabase
                 .from('profiles')
-                .select('username, points, streak, avatar_url')
-                .order('points', { ascending: false })
+                .select('username, season_points, current_streak, avatar_url')
+                .order('season_points', { ascending: false })
                 .limit(5);
 
             setLeaderboard(data || []);
@@ -27,6 +31,44 @@ const ProfileChallenge = ({ profile, stats, isMobile = false }) => {
             console.error('Error fetching leaderboard:', error);
         } finally {
             setLoadingLeaderboard(false);
+        }
+    };
+
+    const fetchStreakLeaders = async () => {
+        try {
+            const { data } = await supabase
+                .from('profiles')
+                .select('username, current_streak, best_streak, avatar_url')
+                .order('current_streak', { ascending: false })
+                .gt('current_streak', 0)
+                .limit(3);
+
+            setStreakLeaders(data || []);
+        } catch (error) {
+            console.error('Error fetching streak leaders:', error);
+        }
+    };
+
+    const fetchAccuracyLeaders = async () => {
+        try {
+            const { data } = await supabase
+                .from('profiles')
+                .select('username, correct_predictions, total_predictions, avatar_url')
+                .gt('total_predictions', 2) // Minimal 3 prediksi biar fair
+                .order('correct_predictions', { ascending: false })
+                .limit(3);
+
+            // Calculate win rate dan sort
+            const withAccuracy = (data || []).map(user => ({
+                ...user,
+                winRate: user.total_predictions > 0
+                    ? Math.round((user.correct_predictions / user.total_predictions) * 100)
+                    : 0
+            })).sort((a, b) => b.winRate - a.winRate);
+
+            setAccuracyLeaders(withAccuracy);
+        } catch (error) {
+            console.error('Error fetching accuracy leaders:', error);
         }
     };
 
@@ -158,7 +200,10 @@ const ProfileChallenge = ({ profile, stats, isMobile = false }) => {
                                     Prediktor teratas
                                 </span>
                             </div>
-                            <button className="text-xs text-green-600 dark:text-green-400 font-condensed hover:underline">
+                            <button
+                                onClick={() => router.push('/challenge')}
+                                className="text-xs text-green-600 dark:text-green-400 font-condensed hover:underline"
+                            >
                                 LIHAT SEMUA
                             </button>
                         </div>
@@ -173,8 +218,8 @@ const ProfileChallenge = ({ profile, stats, isMobile = false }) => {
                                     <div
                                         key={index}
                                         className={`flex items-center gap-3 p-2 rounded-lg ${user.username === profile?.username
-                                                ? 'bg-blue-50 dark:bg-blue-900/20'
-                                                : ''
+                                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                                            : ''
                                             }`}
                                     >
                                         <span className="text-lg">
@@ -195,7 +240,7 @@ const ProfileChallenge = ({ profile, stats, isMobile = false }) => {
                                             </p>
                                         </div>
                                         <span className="text-sm font-bold text-gray-600 dark:text-gray-300 font-condensed">
-                                            {user.points || 0}
+                                            {user.season_points || 0}
                                         </span>
                                     </div>
                                 ))}
@@ -207,40 +252,118 @@ const ProfileChallenge = ({ profile, stats, isMobile = false }) => {
                         )}
                     </div>
 
-                    {/* Kontributor Teratas */}
+                    {/* Streak Terpanjang */}
                     <div className="p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <span className="text-lg">⚡</span>
+                                <span className="text-lg">🔥</span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300 font-condensed">
-                                    Kontributor teratas
+                                    Streak terpanjang
                                 </span>
                             </div>
-                            <button className="text-xs text-green-600 dark:text-green-400 font-condensed hover:underline">
+                            <button
+                                onClick={() => router.push('/challenge')}
+                                className="text-xs text-green-600 dark:text-green-400 font-condensed hover:underline"
+                            >
                                 LIHAT SEMUA
                             </button>
                         </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2 font-condensed">
-                            Belum ada stat kontribusi ditampilkan
-                        </p>
+
+                        {streakLeaders.length > 0 ? (
+                            <div className="space-y-2">
+                                {streakLeaders.map((user, index) => (
+                                    <div
+                                        key={index}
+                                        className={`flex items-center gap-3 p-2 rounded-lg ${user.username === profile?.username
+                                            ? 'bg-orange-50 dark:bg-orange-900/20'
+                                            : ''
+                                            }`}
+                                    >
+                                        <span className="text-lg">
+                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                                        </span>
+                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                            {user.avatar_url ? (
+                                                <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">
+                                                    {user.username?.slice(0, 2).toUpperCase()}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium text-gray-800 dark:text-white font-condensed">
+                                                {user.username}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold text-orange-600 dark:text-orange-400 font-condensed">
+                                            {user.current_streak}x 🔥
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2 font-condensed">
+                                Belum ada streak aktif
+                            </p>
+                        )}
                     </div>
 
-                    {/* Editor Teratas */}
+                    {/* Akurasi Tertinggi */}
                     <div className="p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <span className="text-lg">✏️</span>
+                                <span className="text-lg">🎯</span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300 font-condensed">
-                                    Editor teratas
+                                    Akurasi tertinggi
                                 </span>
                             </div>
-                            <button className="text-xs text-green-600 dark:text-green-400 font-condensed hover:underline">
+                            <button
+                                onClick={() => router.push('/challenge')}
+                                className="text-xs text-green-600 dark:text-green-400 font-condensed hover:underline"
+                            >
                                 LIHAT SEMUA
                             </button>
                         </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2 font-condensed">
-                            Belum ada stat editor ditampilkan
-                        </p>
+
+                        {accuracyLeaders.length > 0 ? (
+                            <div className="space-y-2">
+                                {accuracyLeaders.map((user, index) => (
+                                    <div
+                                        key={index}
+                                        className={`flex items-center gap-3 p-2 rounded-lg ${user.username === profile?.username
+                                            ? 'bg-green-50 dark:bg-green-900/20'
+                                            : ''
+                                            }`}
+                                    >
+                                        <span className="text-lg">
+                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                                        </span>
+                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                            {user.avatar_url ? (
+                                                <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">
+                                                    {user.username?.slice(0, 2).toUpperCase()}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium text-gray-800 dark:text-white font-condensed">
+                                                {user.username}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold text-green-600 dark:text-green-400 font-condensed">
+                                            {user.winRate}%
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2 font-condensed">
+                                Belum ada data akurasi
+                            </p>
+                        )}
                     </div>
                 </div>
             </motion.div>

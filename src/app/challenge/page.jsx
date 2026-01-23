@@ -107,15 +107,15 @@ const LeaderboardSection = ({ currentUserEmail }) => {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.03 }}
                         className={`flex items-center gap-3 p-3 rounded-lg ${isCurrentUser
-                                ? 'bg-green-50 dark:bg-green-900/30 border-2 border-green-500'
-                                : 'bg-gray-50 dark:bg-gray-700/50'
+                            ? 'bg-green-50 dark:bg-green-900/30 border-2 border-green-500'
+                            : 'bg-gray-50 dark:bg-gray-700/50'
                             }`}
                     >
                         {/* Rank Position */}
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                                index === 1 ? 'bg-gray-300 text-gray-700' :
-                                    index === 2 ? 'bg-orange-400 text-orange-900' :
-                                        'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
+                            index === 1 ? 'bg-gray-300 text-gray-700' :
+                                index === 2 ? 'bg-orange-400 text-orange-900' :
+                                    'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                             }`}>
                             {index + 1}
                         </div>
@@ -255,52 +255,11 @@ export default function ChallengePage() {
                 const winnerPredictions = allWinnerPreds || [];
                 const scorePredictions = allScorePreds || [];
 
-                // Total prediksi = unique match IDs dari kedua table
-                const allMatchIds = new Set([
-                    ...winnerPredictions.map(p => p.match_id),
-                    ...scorePredictions.map(p => p.match_id)
-                ]);
-                const totalPredictions = allMatchIds.size;
-
-                // Prediksi benar = winner won + score won (unique matches)
-                const wonWinnerMatches = new Set(
-                    winnerPredictions.filter(p => p.status === 'won').map(p => p.match_id)
-                );
-                const wonScoreMatches = new Set(
-                    scorePredictions.filter(p => p.status === 'won').map(p => p.match_id)
-                );
-                const allWonMatches = new Set([...wonWinnerMatches, ...wonScoreMatches]);
-                const correctPredictions = allWonMatches.size;
-
-                // Hitung streak dari winner predictions (yang paling recent)
-                const sortedWinnerPreds = [...winnerPredictions]
-                    .filter(p => p.status === 'won' || p.status === 'lost')
-                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-                let currentStreak = 0;
-                for (const pred of sortedWinnerPreds) {
-                    if (pred.status === 'won') {
-                        currentStreak++;
-                    } else {
-                        break;
-                    }
-                }
-
-                // Best streak - hitung dari semua prediksi
-                let bestStreak = 0;
-                let tempStreak = 0;
-                const allSortedPreds = [...winnerPredictions]
-                    .filter(p => p.status === 'won' || p.status === 'lost')
-                    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-                for (const pred of allSortedPreds) {
-                    if (pred.status === 'won') {
-                        tempStreak++;
-                        if (tempStreak > bestStreak) bestStreak = tempStreak;
-                    } else {
-                        tempStreak = 0;
-                    }
-                }
+                // Ambil langsung dari profiles (sudah di-sync oleh backend)
+                const totalPredictions = profile.total_predictions || 0;
+                const correctPredictions = profile.correct_predictions || 0;
+                const currentStreak = profile.current_streak || 0;
+                const bestStreak = profile.best_streak || 0;
 
                 if (profile) {
                     // Get rank position
@@ -560,8 +519,8 @@ export default function ChallengePage() {
                                                     Match #{pred.match_id}
                                                 </span>
                                                 <span className={`px-2 py-0.5 rounded text-xs font-condensed ${pred.status === 'won' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                        pred.status === 'lost' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                    pred.status === 'lost' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                        'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                                                     }`}>
                                                     {pred.status || 'pending'}
                                                 </span>
@@ -592,8 +551,8 @@ export default function ChallengePage() {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`px-6 py-3 font-medium border-b-2 transition-colors font-condensed ${activeTab === tab.id
-                                                ? 'border-green-500 text-green-600 dark:text-green-400'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                            ? 'border-green-500 text-green-600 dark:text-green-400'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                             }`}
                                     >
                                         {tab.label}
@@ -615,8 +574,8 @@ export default function ChallengePage() {
                                             <div
                                                 key={tier.name}
                                                 className={`flex-shrink-0 w-14 h-14 rounded-lg flex flex-col items-center justify-center border-2 transition-all ${userData.totalExp >= tier.minExp && userData.totalExp <= tier.maxExp
-                                                        ? 'bg-gradient-to-r from-yellow-100 to-orange-100 border-yellow-400 shadow-md dark:from-yellow-900/30 dark:to-orange-900/30'
-                                                        : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                                                    ? 'bg-gradient-to-r from-yellow-100 to-orange-100 border-yellow-400 shadow-md dark:from-yellow-900/30 dark:to-orange-900/30'
+                                                    : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                                                     }`}
                                                 title={`${tier.name}: ${tier.minExp}-${tier.maxExp === 99999 ? '∞' : tier.maxExp} EXP`}
                                             >

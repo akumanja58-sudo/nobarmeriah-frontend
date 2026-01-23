@@ -25,6 +25,11 @@ export default function MatchVote({ match, user, isFinished }) {
   const [hasScorePrediction, setHasScorePrediction] = useState(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
 
+  // Edit Mode State
+  const [isEditingVote, setIsEditingVote] = useState(false);
+  const [isEditingScore, setIsEditingScore] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
 
@@ -172,6 +177,126 @@ export default function MatchVote({ match, user, isFinished }) {
   };
 
   // ============================================================
+  // HANDLE EDIT WINNER VOTE
+  // ============================================================
+  const handleEditVote = async (newVote) => {
+    if (!user || !hasVoted) return;
+    if (isMatchStarted || isFinished) {
+      alert('Tidak bisa mengubah vote. Pertandingan sudah dimulai!');
+      return;
+    }
+
+    setIsSubmittingVote(true);
+
+    try {
+      const matchId = parseInt(match.id);
+
+      const { error } = await supabase
+        .from('winner_predictions')
+        .update({ predicted_result: newVote })
+        .eq('match_id', matchId)
+        .eq('email', user.email);
+
+      if (error) {
+        console.error('Edit vote error:', error);
+        alert('Gagal mengubah vote: ' + error.message);
+        return;
+      }
+
+      // Update local state
+      const oldVote = userVote;
+      setUserVote(newVote);
+      setIsEditingVote(false);
+
+      // Recalculate percentages
+      const currentVoteCounts = {
+        home: Math.round((votes.home / 100) * totalVotes),
+        draw: Math.round((votes.draw / 100) * totalVotes),
+        away: Math.round((votes.away / 100) * totalVotes),
+      };
+      currentVoteCounts[oldVote] -= 1;
+      currentVoteCounts[newVote] += 1;
+
+      setVotes({
+        home: totalVotes > 0 ? Math.round((currentVoteCounts.home / totalVotes) * 100) : 0,
+        draw: totalVotes > 0 ? Math.round((currentVoteCounts.draw / totalVotes) * 100) : 0,
+        away: totalVotes > 0 ? Math.round((currentVoteCounts.away / totalVotes) * 100) : 0,
+      });
+
+      alert('✅ Vote berhasil diubah!');
+
+    } catch (err) {
+      console.error('Edit vote error:', err);
+      alert('Terjadi kesalahan saat mengubah vote');
+    } finally {
+      setIsSubmittingVote(false);
+    }
+  };
+
+  // ============================================================
+  // HANDLE CANCEL/DELETE WINNER VOTE
+  // ============================================================
+  const handleCancelVote = async () => {
+    if (!user || !hasVoted) return;
+    if (isMatchStarted || isFinished) {
+      alert('Tidak bisa membatalkan vote. Pertandingan sudah dimulai!');
+      return;
+    }
+
+    if (!confirm('Yakin mau batalkan vote kamu?')) return;
+
+    setIsDeleting(true);
+
+    try {
+      const matchId = parseInt(match.id);
+
+      const { error } = await supabase
+        .from('winner_predictions')
+        .delete()
+        .eq('match_id', matchId)
+        .eq('email', user.email);
+
+      if (error) {
+        console.error('Cancel vote error:', error);
+        alert('Gagal membatalkan vote: ' + error.message);
+        return;
+      }
+
+      // Update local state
+      const oldVote = userVote;
+      setUserVote(null);
+      setHasVoted(false);
+      setIsEditingVote(false);
+
+      // Update vote counts
+      const newTotal = totalVotes - 1;
+      setTotalVotes(newTotal);
+
+      // Recalculate percentages
+      const currentVoteCounts = {
+        home: Math.round((votes.home / 100) * totalVotes),
+        draw: Math.round((votes.draw / 100) * totalVotes),
+        away: Math.round((votes.away / 100) * totalVotes),
+      };
+      currentVoteCounts[oldVote] -= 1;
+
+      setVotes({
+        home: newTotal > 0 ? Math.round((currentVoteCounts.home / newTotal) * 100) : 0,
+        draw: newTotal > 0 ? Math.round((currentVoteCounts.draw / newTotal) * 100) : 0,
+        away: newTotal > 0 ? Math.round((currentVoteCounts.away / newTotal) * 100) : 0,
+      });
+
+      alert('🗑️ Vote berhasil dibatalkan!');
+
+    } catch (err) {
+      console.error('Cancel vote error:', err);
+      alert('Terjadi kesalahan saat membatalkan vote');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // ============================================================
   // HANDLE SCORE PREDICTION
   // ============================================================
   const handleSubmitScore = async () => {
@@ -225,6 +350,95 @@ export default function MatchVote({ match, user, isFinished }) {
   };
 
   // ============================================================
+  // HANDLE EDIT SCORE PREDICTION
+  // ============================================================
+  const handleEditScore = async () => {
+    if (!user || !hasScorePrediction) return;
+    if (isMatchStarted || isFinished) {
+      alert('Tidak bisa mengubah tebakan. Pertandingan sudah dimulai!');
+      return;
+    }
+    if (scorePrediction.home === '' || scorePrediction.away === '') {
+      alert('Masukkan skor untuk kedua tim!');
+      return;
+    }
+
+    setIsSubmittingScore(true);
+
+    try {
+      const matchId = parseInt(match.id);
+
+      const { error } = await supabase
+        .from('score_predictions')
+        .update({
+          predicted_home_score: parseInt(scorePrediction.home),
+          predicted_away_score: parseInt(scorePrediction.away)
+        })
+        .eq('match_id', matchId)
+        .eq('email', user.email);
+
+      if (error) {
+        console.error('Edit score error:', error);
+        alert('Gagal mengubah tebakan skor: ' + error.message);
+        return;
+      }
+
+      setIsEditingScore(false);
+      alert('✅ Tebakan skor berhasil diubah!');
+
+    } catch (err) {
+      console.error('Edit score error:', err);
+      alert('Terjadi kesalahan saat mengubah tebakan skor');
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  };
+
+  // ============================================================
+  // HANDLE CANCEL/DELETE SCORE PREDICTION
+  // ============================================================
+  const handleCancelScore = async () => {
+    if (!user || !hasScorePrediction) return;
+    if (isMatchStarted || isFinished) {
+      alert('Tidak bisa membatalkan tebakan. Pertandingan sudah dimulai!');
+      return;
+    }
+
+    if (!confirm('Yakin mau batalkan tebakan skor kamu?')) return;
+
+    setIsDeleting(true);
+
+    try {
+      const matchId = parseInt(match.id);
+
+      const { error } = await supabase
+        .from('score_predictions')
+        .delete()
+        .eq('match_id', matchId)
+        .eq('email', user.email);
+
+      if (error) {
+        console.error('Cancel score error:', error);
+        alert('Gagal membatalkan tebakan skor: ' + error.message);
+        return;
+      }
+
+      // Reset state
+      setScorePrediction({ home: '', away: '' });
+      setHasScorePrediction(false);
+      setIsEditingScore(false);
+
+      alert('🗑️ Tebakan skor berhasil dibatalkan!');
+
+    } catch (err) {
+      console.error('Cancel score error:', err);
+      alert('Terjadi kesalahan saat membatalkan tebakan skor');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // ============================================================
   // HELPERS
   // ============================================================
   const formatVotes = (num) => {
@@ -244,6 +458,7 @@ export default function MatchVote({ match, user, isFinished }) {
 
   const canVote = !isFinished && !isMatchStarted && !hasVoted;
   const canPredictScore = !isFinished && !isMatchStarted && !hasScorePrediction;
+  const canEdit = !isFinished && !isMatchStarted; // Bisa edit kalau match belum mulai
 
   // Get team names (shortened for display)
   const getShortName = (name, maxLen = 12) => {
@@ -332,12 +547,12 @@ export default function MatchVote({ match, user, isFinished }) {
               <div className="grid grid-cols-3 gap-1">
                 {/* Home Vote */}
                 <button
-                  onClick={() => handleVote('home')}
-                  disabled={!canVote || isSubmittingVote}
+                  onClick={() => isEditingVote ? handleEditVote('home') : handleVote('home')}
+                  disabled={(!canVote && !isEditingVote) || isSubmittingVote || (isEditingVote && userVote === 'home')}
                   className={`relative py-2 rounded-lg border-2 transition-all font-condensed overflow-hidden ${userVote === 'home'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                    } ${!canVote ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    } ${(!canVote && !isEditingVote) ? 'opacity-60 cursor-not-allowed' : ''} ${isEditingVote && userVote !== 'home' ? 'hover:border-green-400 hover:bg-green-50/50 cursor-pointer opacity-100' : ''}`}
                 >
                   <div
                     className="absolute inset-0 bg-green-100 transition-all"
@@ -357,12 +572,12 @@ export default function MatchVote({ match, user, isFinished }) {
 
                 {/* Draw Vote */}
                 <button
-                  onClick={() => handleVote('draw')}
-                  disabled={!canVote || isSubmittingVote}
+                  onClick={() => isEditingVote ? handleEditVote('draw') : handleVote('draw')}
+                  disabled={(!canVote && !isEditingVote) || isSubmittingVote || (isEditingVote && userVote === 'draw')}
                   className={`relative py-2 rounded-lg border-2 transition-all font-condensed overflow-hidden ${userVote === 'draw'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                    } ${!canVote ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    } ${(!canVote && !isEditingVote) ? 'opacity-60 cursor-not-allowed' : ''} ${isEditingVote && userVote !== 'draw' ? 'hover:border-green-400 hover:bg-green-50/50 cursor-pointer opacity-100' : ''}`}
                 >
                   <div
                     className="absolute inset-0 bg-gray-200 transition-all"
@@ -382,12 +597,12 @@ export default function MatchVote({ match, user, isFinished }) {
 
                 {/* Away Vote */}
                 <button
-                  onClick={() => handleVote('away')}
-                  disabled={!canVote || isSubmittingVote}
+                  onClick={() => isEditingVote ? handleEditVote('away') : handleVote('away')}
+                  disabled={(!canVote && !isEditingVote) || isSubmittingVote || (isEditingVote && userVote === 'away')}
                   className={`relative py-2 rounded-lg border-2 transition-all font-condensed overflow-hidden ${userVote === 'away'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                    } ${!canVote ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                    } ${(!canVote && !isEditingVote) ? 'opacity-60 cursor-not-allowed' : ''} ${isEditingVote && userVote !== 'away' ? 'hover:border-green-400 hover:bg-green-50/50 cursor-pointer opacity-100' : ''}`}
                 >
                   <div
                     className="absolute inset-0 bg-red-100 transition-all"
@@ -405,6 +620,53 @@ export default function MatchVote({ match, user, isFinished }) {
                   </div>
                 </button>
               </div>
+
+              {/* Edit/Cancel buttons - Show when user has voted and match not started */}
+              {hasVoted && canEdit && (
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  {!isEditingVote ? (
+                    <>
+                      <button
+                        onClick={() => setIsEditingVote(true)}
+                        className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors font-condensed flex items-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Ubah Pilihan
+                      </button>
+                      <button
+                        onClick={handleCancelVote}
+                        disabled={isDeleting}
+                        className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-condensed flex items-center gap-1"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                        Batalkan
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditingVote(false)}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-condensed"
+                    >
+                      Batal Edit
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Edit mode instruction */}
+              {isEditingVote && (
+                <p className="text-[10px] text-blue-600 mt-2 text-center font-condensed">
+                  👆 Klik pilihan baru untuk mengubah vote
+                </p>
+              )}
 
               {/* Status message */}
               {isMatchStarted && !isFinished && (
@@ -440,31 +702,62 @@ export default function MatchVote({ match, user, isFinished }) {
                 </p>
               </div>
 
-              {hasScorePrediction ? (
-                /* Show submitted prediction */
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <p className="text-xs text-green-700 font-condensed mb-2 text-center">Prediksi kamu:</p>
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="text-center">
-                      <div className="w-8 h-8 mx-auto mb-1">
-                        {match?.home_team_logo && (
-                          <img src={match.home_team_logo} alt="" className="w-8 h-8 object-contain" />
-                        )}
+              {hasScorePrediction && !isEditingScore ? (
+                /* Show submitted prediction with Edit/Cancel buttons */
+                <div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p className="text-xs text-green-700 font-condensed mb-2 text-center">Prediksi kamu:</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="text-center">
+                        <div className="w-8 h-8 mx-auto mb-1">
+                          {match?.home_team_logo && (
+                            <img src={match.home_team_logo} alt="" className="w-8 h-8 object-contain" />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-600 font-condensed truncate max-w-[50px]">{homeTeamName}</p>
                       </div>
-                      <p className="text-[10px] text-gray-600 font-condensed truncate max-w-[50px]">{homeTeamName}</p>
-                    </div>
-                    <div className="text-xl font-bold text-green-700 font-condensed">
-                      {scorePrediction.home} - {scorePrediction.away}
-                    </div>
-                    <div className="text-center">
-                      <div className="w-8 h-8 mx-auto mb-1">
-                        {match?.away_team_logo && (
-                          <img src={match.away_team_logo} alt="" className="w-8 h-8 object-contain" />
-                        )}
+                      <div className="text-xl font-bold text-green-700 font-condensed">
+                        {scorePrediction.home} - {scorePrediction.away}
                       </div>
-                      <p className="text-[10px] text-gray-600 font-condensed truncate max-w-[50px]">{awayTeamName}</p>
+                      <div className="text-center">
+                        <div className="w-8 h-8 mx-auto mb-1">
+                          {match?.away_team_logo && (
+                            <img src={match.away_team_logo} alt="" className="w-8 h-8 object-contain" />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-600 font-condensed truncate max-w-[50px]">{awayTeamName}</p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Edit/Cancel buttons for Score */}
+                  {canEdit && (
+                    <div className="flex items-center justify-center gap-2 mt-3">
+                      <button
+                        onClick={() => setIsEditingScore(true)}
+                        className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors font-condensed flex items-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Ubah Skor
+                      </button>
+                      <button
+                        onClick={handleCancelScore}
+                        disabled={isDeleting}
+                        className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-condensed flex items-center gap-1"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                        Batalkan
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Score input form */
@@ -502,11 +795,11 @@ export default function MatchVote({ match, user, isFinished }) {
                       placeholder="0"
                       value={scorePrediction.home}
                       onChange={(e) => setScorePrediction(prev => ({ ...prev, home: e.target.value }))}
-                      disabled={!canPredictScore}
+                      disabled={!canPredictScore && !isEditingScore}
                       className={`w-12 h-12 text-center border-2 rounded-lg text-lg font-bold transition-colors ${scorePrediction.home !== ''
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200'
-                        } ${!canPredictScore ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200'
+                        } ${(!canPredictScore && !isEditingScore) ? 'opacity-60 cursor-not-allowed' : ''}`}
                     />
                     <span className="text-lg text-gray-400 font-bold">:</span>
                     <input
@@ -516,16 +809,16 @@ export default function MatchVote({ match, user, isFinished }) {
                       placeholder="0"
                       value={scorePrediction.away}
                       onChange={(e) => setScorePrediction(prev => ({ ...prev, away: e.target.value }))}
-                      disabled={!canPredictScore}
+                      disabled={!canPredictScore && !isEditingScore}
                       className={`w-12 h-12 text-center border-2 rounded-lg text-lg font-bold transition-colors ${scorePrediction.away !== ''
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200'
-                        } ${!canPredictScore ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200'
+                        } ${(!canPredictScore && !isEditingScore) ? 'opacity-60 cursor-not-allowed' : ''}`}
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  {canPredictScore && scorePrediction.home !== '' && scorePrediction.away !== '' && (
+                  {/* Submit Button - for new prediction */}
+                  {canPredictScore && !isEditingScore && scorePrediction.home !== '' && scorePrediction.away !== '' && (
                     <button
                       onClick={handleSubmitScore}
                       disabled={isSubmittingScore}
@@ -543,6 +836,35 @@ export default function MatchVote({ match, user, isFinished }) {
                         </>
                       )}
                     </button>
+                  )}
+
+                  {/* Edit Mode Buttons */}
+                  {isEditingScore && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleEditScore}
+                        disabled={isSubmittingScore || scorePrediction.home === '' || scorePrediction.away === ''}
+                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors font-condensed text-xs flex items-center justify-center gap-1"
+                      >
+                        {isSubmittingScore ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Menyimpan...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3" />
+                            Simpan Perubahan
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setIsEditingScore(false)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors font-condensed text-xs"
+                      >
+                        Batal
+                      </button>
+                    </div>
                   )}
 
                   {/* Status message */}

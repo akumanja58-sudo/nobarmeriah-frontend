@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
@@ -66,8 +66,8 @@ const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
                         <button
                             onClick={() => setStatsFilter('30days')}
                             className={`px-3 py-1 text-xs font-medium font-condensed rounded-full transition-colors ${statsFilter === '30days'
-                                    ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400'
+                                ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400'
                                 }`}
                         >
                             30 hari terakhir
@@ -75,8 +75,8 @@ const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
                         <button
                             onClick={() => setStatsFilter('alltime')}
                             className={`px-3 py-1 text-xs font-medium font-condensed rounded-full transition-colors ${statsFilter === 'alltime'
-                                    ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400'
+                                ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400'
                                 }`}
                         >
                             Semua waktu
@@ -198,8 +198,8 @@ const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
                     <button
                         onClick={() => setPredictionTab('aktif')}
                         className={`flex-1 py-3 text-sm font-medium font-condensed transition-colors relative ${predictionTab === 'aktif'
-                                ? 'text-gray-800 dark:text-white'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'text-gray-800 dark:text-white'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         <span className={`px-3 py-1 rounded-full ${predictionTab === 'aktif' ? 'bg-gray-800 dark:bg-white text-white dark:text-gray-800' : ''
@@ -210,8 +210,8 @@ const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
                     <button
                         onClick={() => setPredictionTab('selesai')}
                         className={`flex-1 py-3 text-sm font-medium font-condensed transition-colors ${predictionTab === 'selesai'
-                                ? 'text-gray-800 dark:text-white'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'text-gray-800 dark:text-white'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         Selesai
@@ -219,8 +219,8 @@ const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
                     <button
                         onClick={() => setPredictionTab('statistik')}
                         className={`flex-1 py-3 text-sm font-medium font-condensed transition-colors ${predictionTab === 'statistik'
-                                ? 'text-gray-800 dark:text-white'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'text-gray-800 dark:text-white'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         Statistik
@@ -239,18 +239,19 @@ const ProfileStats = ({ profile, stats, predictions, isMobile = false }) => {
                                 transition={{ duration: 0.2 }}
                             >
                                 {predictions.active.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {/* Date Header */}
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-condensed">
-                                            Prediksi aktif • {predictions.active.length} pertandingan
-                                        </p>
+                                    <div className="space-y-4">
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 font-condensed">
+                                                Prediksi aktif • {predictions.active.length} pertandingan
+                                            </p>
+                                        </div>
 
-                                        {/* Prediction Items */}
+                                        {/* Active Prediction Cards */}
                                         {predictions.active.map((pred, index) => (
-                                            <PredictionItem
-                                                key={pred.id || index}
+                                            <ActivePredictionCard
+                                                key={pred.id || pred.match_id || index}
                                                 prediction={pred}
-                                                isActive={true}
                                             />
                                         ))}
                                     </div>
@@ -396,7 +397,25 @@ const PredictionItem = ({ prediction, isActive }) => {
         return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     };
 
-    const isWin = (prediction.points_earned || 0) > 0;
+    const formatMatchDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+
+        if (isToday) {
+            return `Hari ini`;
+        }
+
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short'
+        });
+    };
+
+    // Untuk completed: cek is_correct, bukan points_earned
+    const isWin = prediction.is_correct === true;
+    const totalPoints = (prediction.points_earned || 0) + (prediction.score_points_earned || 0);
 
     return (
         <motion.div
@@ -406,6 +425,17 @@ const PredictionItem = ({ prediction, isActive }) => {
         >
             <div className="flex items-center justify-between">
                 <div className="flex-1">
+                    {/* League & Date */}
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-condensed uppercase">
+                            {prediction.league || 'Match'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">•</span>
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-condensed">
+                            {formatMatchDate(prediction.match_time)}
+                        </span>
+                    </div>
+
                     <div className="flex items-center gap-2 mb-1">
                         {/* Home Team */}
                         <div className="flex items-center gap-1.5">
@@ -419,9 +449,9 @@ const PredictionItem = ({ prediction, isActive }) => {
 
                         {/* Score/Time */}
                         <span className="text-xs text-gray-500 dark:text-gray-400 font-condensed px-2">
-                            {isActive
-                                ? formatMatchTime(prediction.match_time || prediction.created_at)
-                                : `${prediction.home_score || 0} - ${prediction.away_score || 0}`
+                            {(prediction.home_score !== null && prediction.away_score !== null)
+                                ? `${prediction.home_score} - ${prediction.away_score}`
+                                : 'vs'
                             }
                         </span>
 
@@ -438,7 +468,9 @@ const PredictionItem = ({ prediction, isActive }) => {
 
                     {/* Prediction Info */}
                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-condensed">
-                        <span>Prediksi: {prediction.predicted_winner || prediction.prediction || '-'}</span>
+                        {prediction.predicted_winner && (
+                            <span>🎯 {prediction.predicted_winner}</span>
+                        )}
                         {prediction.predicted_score && (
                             <span>• Skor: {prediction.predicted_score}</span>
                         )}
@@ -447,24 +479,128 @@ const PredictionItem = ({ prediction, isActive }) => {
 
                 {/* Result Badge */}
                 <div className="flex items-center gap-2">
-                    {!isActive && (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium font-condensed ${isWin
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                            }`}>
-                            {isWin ? `+${prediction.points_earned}` : '0'}
-                        </span>
-                    )}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium font-condensed ${isWin
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                        }`}>
+                        {isWin ? `+${totalPoints}` : '0'}
+                    </span>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
 
-                    {/* Edit Button for Active */}
-                    {isActive && (
-                        <button className="p-1.5 text-gray-400 hover:text-green-500 transition-colors">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                        </button>
+// Active Prediction Card Component - Simple Compact Version
+const ActivePredictionCard = ({ prediction }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    // Calculate time until match
+    useEffect(() => {
+        const calculateTimeLeft = () => {
+            if (!prediction.match_time) return 'Segera';
+
+            const matchTime = new Date(prediction.match_time);
+            const now = new Date();
+            const diff = matchTime - now;
+
+            if (diff <= 0) return '🔴 Live';
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+            if (hours > 24) {
+                const days = Math.floor(hours / 24);
+                return `${days}h lagi`;
+            } else if (hours > 0) {
+                return `${hours}j ${minutes}m`;
+            } else {
+                return `${minutes}m`;
+            }
+        };
+
+        setTimeLeft(calculateTimeLeft());
+        const interval = setInterval(() => {
+            setTimeLeft(calculateTimeLeft());
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [prediction.match_time]);
+
+    const formatMatchTime = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    return (
+        <motion.div
+            className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl"
+            whileHover={{ scale: 1.01 }}
+            transition={{ duration: 0.2 }}
+        >
+            {/* Header Row - League & Countdown */}
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-green-600 dark:text-green-400 font-condensed uppercase font-medium">
+                        {prediction.league || 'Match'}
+                    </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] text-green-600 dark:text-green-400 font-condensed font-medium">
+                        {timeLeft}
+                    </span>
+                </div>
+            </div>
+
+            {/* Teams Row */}
+            <div className="flex items-center gap-2 mb-2">
+                {/* Home Team */}
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    {prediction.home_logo ? (
+                        <img src={prediction.home_logo} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                    ) : (
+                        <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full flex-shrink-0"></div>
+                    )}
+                    <span className="text-sm font-medium text-gray-800 dark:text-white font-condensed truncate">
+                        {prediction.home_team || 'Home'}
+                    </span>
+                </div>
+
+                {/* Time */}
+                <div className="flex-shrink-0 px-2 py-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                    <span className="text-xs font-bold text-gray-800 dark:text-white font-condensed">
+                        {formatMatchTime(prediction.match_time)}
+                    </span>
+                </div>
+
+                {/* Away Team */}
+                <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                    <span className="text-sm font-medium text-gray-800 dark:text-white font-condensed truncate">
+                        {prediction.away_team || 'Away'}
+                    </span>
+                    {prediction.away_logo ? (
+                        <img src={prediction.away_logo} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                    ) : (
+                        <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full flex-shrink-0"></div>
                     )}
                 </div>
+            </div>
+
+            {/* Prediction Row */}
+            <div className="flex items-center gap-2 pt-2 border-t border-green-200 dark:border-green-800/50">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 font-condensed">Prediksi:</span>
+                {prediction.predicted_winner && (
+                    <span className="px-2 py-0.5 bg-green-100 dark:bg-green-800/50 text-green-700 dark:text-green-300 text-xs font-medium font-condensed rounded-full">
+                        🏆 {prediction.predicted_winner}
+                    </span>
+                )}
+                {prediction.predicted_score && (
+                    <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 text-xs font-medium font-condensed rounded-full">
+                        📊 {prediction.predicted_score}
+                    </span>
+                )}
             </div>
         </motion.div>
     );

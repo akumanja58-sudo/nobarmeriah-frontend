@@ -81,13 +81,21 @@ const ProfilePage = ({ user }) => {
 
     const fetchStats = async (profileData) => {
         try {
-            // Get winner predictions
+            // Ambil langsung dari profileData (sudah di-sync oleh backend)
+            const totalPredictions = profileData.total_predictions || 0;
+            const correctPredictions = profileData.correct_predictions || 0;
+            const currentStreak = profileData.current_streak || 0;
+            const bestStreak = profileData.best_streak || 0;
+
+            // Win rate
+            const winRate = totalPredictions > 0 ? Math.round((correctPredictions / totalPredictions) * 100) : 0;
+
+            // Get weekly & monthly dari prediction tables (untuk stats tambahan)
             const { data: winnerPreds } = await supabase
                 .from('winner_predictions')
                 .select('*')
                 .eq('email', profileData.email);
 
-            // Get score predictions
             const { data: scorePreds } = await supabase
                 .from('score_predictions')
                 .select('*')
@@ -96,63 +104,7 @@ const ProfilePage = ({ user }) => {
             const winnerPredictions = winnerPreds || [];
             const scorePredictions = scorePreds || [];
 
-            // Total prediksi = unique match IDs dari kedua table
-            const allMatchIds = new Set([
-                ...winnerPredictions.map(p => p.match_id),
-                ...scorePredictions.map(p => p.match_id)
-            ]);
-            const totalPredictions = allMatchIds.size;
-
-            // Prediksi benar = winner won + score won (unique matches)
-            const wonWinnerMatches = new Set(
-                winnerPredictions.filter(p => p.status === 'won').map(p => p.match_id)
-            );
-            const wonScoreMatches = new Set(
-                scorePredictions.filter(p => p.status === 'won').map(p => p.match_id)
-            );
-            const allWonMatches = new Set([...wonWinnerMatches, ...wonScoreMatches]);
-            const correctPredictions = allWonMatches.size;
-
-            // Win rate
-            const winRate = totalPredictions > 0 ? Math.round((correctPredictions / totalPredictions) * 100) : 0;
-
-            // Hitung current streak dari winner predictions (yang paling recent)
-            const sortedWinnerPreds = [...winnerPredictions]
-                .filter(p => p.status === 'won' || p.status === 'lost')
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-            let currentStreak = 0;
-            for (const pred of sortedWinnerPreds) {
-                if (pred.status === 'won') {
-                    currentStreak++;
-                } else {
-                    break;
-                }
-            }
-
-            // Best streak - hitung dari semua prediksi
-            let bestStreak = 0;
-            let tempStreak = 0;
-            const allSortedPreds = [...winnerPredictions]
-                .filter(p => p.status === 'won' || p.status === 'lost')
-                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-            for (const pred of allSortedPreds) {
-                if (pred.status === 'won') {
-                    tempStreak++;
-                    if (tempStreak > bestStreak) bestStreak = tempStreak;
-                } else {
-                    tempStreak = 0;
-                }
-            }
-
-            // Ambil best streak dari profile jika lebih besar
-            bestStreak = Math.max(bestStreak, profileData.best_streak || 0);
-
-            // Combine all predictions for weekly/monthly calc
-            const allPredictions = [...winnerPredictions, ...scorePredictions];
-
-            // Weekly stats (unique match IDs dalam 7 hari terakhir)
+            // Weekly stats (dalam 7 hari terakhir)
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -165,12 +117,12 @@ const ProfilePage = ({ user }) => {
             const weeklyPredictions = weeklyMatchIds.size;
 
             const weeklyWonMatches = new Set([
-                ...weeklyWinnerPreds.filter(p => p.status === 'won').map(p => p.match_id),
-                ...weeklyScorePreds.filter(p => p.status === 'won').map(p => p.match_id)
+                ...weeklyWinnerPreds.filter(p => p.is_correct === true).map(p => p.match_id),
+                ...weeklyScorePreds.filter(p => p.is_correct === true).map(p => p.match_id)
             ]);
             const weeklyCorrect = weeklyWonMatches.size;
 
-            // Monthly stats (unique match IDs dalam 30 hari terakhir)
+            // Monthly stats (dalam 30 hari terakhir)
             const oneMonthAgo = new Date();
             oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
 
@@ -183,8 +135,8 @@ const ProfilePage = ({ user }) => {
             const monthlyPredictions = monthlyMatchIds.size;
 
             const monthlyWonMatches = new Set([
-                ...monthlyWinnerPreds.filter(p => p.status === 'won').map(p => p.match_id),
-                ...monthlyScorePreds.filter(p => p.status === 'won').map(p => p.match_id)
+                ...monthlyWinnerPreds.filter(p => p.is_correct === true).map(p => p.match_id),
+                ...monthlyScorePreds.filter(p => p.is_correct === true).map(p => p.match_id)
             ]);
             const monthlyCorrect = monthlyWonMatches.size;
 
@@ -207,14 +159,14 @@ const ProfilePage = ({ user }) => {
 
         } catch (error) {
             console.error('Error fetching stats:', error);
-            // Fallback stats
+            // Fallback stats dari profileData
             setStats({
-                totalPredictions: 0,
-                correctPredictions: 0,
-                wrongPredictions: 0,
+                totalPredictions: profileData?.total_predictions || 0,
+                correctPredictions: profileData?.correct_predictions || 0,
+                wrongPredictions: (profileData?.total_predictions || 0) - (profileData?.correct_predictions || 0),
                 winRate: 0,
-                currentStreak: profileData?.streak || 0,
-                bestStreak: profileData?.streak || 0,
+                currentStreak: profileData?.current_streak || 0,
+                bestStreak: profileData?.best_streak || 0,
                 totalPoints: profileData?.points || 0,
                 weeklyPredictions: 0,
                 weeklyCorrect: 0,
@@ -229,27 +181,179 @@ const ProfilePage = ({ user }) => {
         try {
             const now = new Date().toISOString();
 
-            // Get active predictions (match belum selesai)
-            const { data: activePreds } = await supabase
+            console.log('🔍 Fetching predictions for email:', user.email);
+
+            // Get active predictions (status = pending) - JOIN dengan matches
+            const { data: activeWinnerPreds } = await supabase
                 .from('winner_predictions')
-                .select('*')
+                .select(`
+                    *,
+                    matches (
+                        id,
+                        home_team_name,
+                        away_team_name,
+                        home_team_logo,
+                        away_team_logo,
+                        home_score,
+                        away_score,
+                        date,
+                        status_short,
+                        league_name
+                    )
+                `)
                 .eq('email', user.email)
-                .is('points_earned', null)
+                .eq('status', 'pending')
                 .order('created_at', { ascending: false })
                 .limit(10);
 
-            // Get completed predictions
-            const { data: completedPreds } = await supabase
-                .from('winner_predictions')
-                .select('*')
+            // Get active score predictions (status = pending)
+            const { data: activeScorePreds } = await supabase
+                .from('score_predictions')
+                .select(`
+                    *,
+                    matches (
+                        id,
+                        home_team_name,
+                        away_team_name,
+                        home_team_logo,
+                        away_team_logo,
+                        home_score,
+                        away_score,
+                        date,
+                        status_short,
+                        league_name
+                    )
+                `)
                 .eq('email', user.email)
-                .not('points_earned', 'is', null)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            // Get completed winner predictions (status = graded)
+            const { data: completedWinnerPreds } = await supabase
+                .from('winner_predictions')
+                .select(`
+                    *,
+                    matches (
+                        id,
+                        home_team_name,
+                        away_team_name,
+                        home_team_logo,
+                        away_team_logo,
+                        home_score,
+                        away_score,
+                        date,
+                        status_short,
+                        league_name
+                    )
+                `)
+                .eq('email', user.email)
+                .eq('status', 'graded')
                 .order('created_at', { ascending: false })
                 .limit(20);
 
+            // Get completed score predictions (status = graded)
+            const { data: completedScorePreds } = await supabase
+                .from('score_predictions')
+                .select(`
+                    *,
+                    matches (
+                        id,
+                        home_team_name,
+                        away_team_name,
+                        home_team_logo,
+                        away_team_logo,
+                        home_score,
+                        away_score,
+                        date,
+                        status_short,
+                        league_name
+                    )
+                `)
+                .eq('email', user.email)
+                .eq('status', 'graded')
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            // Transform winner prediction data untuk frontend
+            const transformWinnerPrediction = (pred) => ({
+                ...pred,
+                type: 'winner',
+                home_team: pred.matches?.home_team_name || 'Home',
+                away_team: pred.matches?.away_team_name || 'Away',
+                home_logo: pred.matches?.home_team_logo || null,
+                away_logo: pred.matches?.away_team_logo || null,
+                home_score: pred.matches?.home_score ?? null,
+                away_score: pred.matches?.away_score ?? null,
+                match_time: pred.matches?.date || pred.created_at,
+                league: pred.matches?.league_name || '',
+                match_status: pred.matches?.status_short || '',
+                predicted_winner: pred.predicted_result === 'home'
+                    ? pred.matches?.home_team_name
+                    : pred.predicted_result === 'away'
+                        ? pred.matches?.away_team_name
+                        : 'Seri'
+            });
+
+            // Transform score prediction data untuk frontend
+            const transformScorePrediction = (pred) => ({
+                ...pred,
+                type: 'score',
+                home_team: pred.matches?.home_team_name || 'Home',
+                away_team: pred.matches?.away_team_name || 'Away',
+                home_logo: pred.matches?.home_team_logo || null,
+                away_logo: pred.matches?.away_team_logo || null,
+                home_score: pred.matches?.home_score ?? null,
+                away_score: pred.matches?.away_score ?? null,
+                match_time: pred.matches?.date || pred.created_at,
+                league: pred.matches?.league_name || '',
+                match_status: pred.matches?.status_short || '',
+                predicted_score: `${pred.predicted_home_score}-${pred.predicted_away_score}`
+            });
+
+            // Combine dan sort by created_at
+            const activeWinner = (activeWinnerPreds || []).map(transformWinnerPrediction);
+            const activeScore = (activeScorePreds || []).map(transformScorePrediction);
+            const completedWinner = (completedWinnerPreds || []).map(transformWinnerPrediction);
+            const completedScore = (completedScorePreds || []).map(transformScorePrediction);
+
+            // Merge by match_id (gabung winner & score predictions untuk match yang sama)
+            const mergeByMatch = (winnerPreds, scorePreds) => {
+                const matchMap = new Map();
+
+                // Add winner predictions
+                winnerPreds.forEach(pred => {
+                    matchMap.set(pred.match_id, { ...pred });
+                });
+
+                // Merge score predictions
+                scorePreds.forEach(pred => {
+                    if (matchMap.has(pred.match_id)) {
+                        // Gabung dengan winner prediction yang ada
+                        const existing = matchMap.get(pred.match_id);
+                        matchMap.set(pred.match_id, {
+                            ...existing,
+                            predicted_score: pred.predicted_score,
+                            score_points_earned: pred.points_earned,
+                            score_is_correct: pred.is_correct
+                        });
+                    } else {
+                        // Tambah sebagai prediksi baru
+                        matchMap.set(pred.match_id, { ...pred });
+                    }
+                });
+
+                return Array.from(matchMap.values())
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            };
+
+            console.log('🔍 Active Winner:', activeWinner);
+            console.log('🔍 Active Score:', activeScore);
+            console.log('🔍 Final Active:', mergeByMatch(activeWinner, activeScore));
+
             setPredictions({
-                active: activePreds || [],
-                completed: completedPreds || []
+                active: mergeByMatch(activeWinner, activeScore),
+                completed: mergeByMatch(completedWinner, completedScore)
             });
 
         } catch (error) {
@@ -310,8 +414,8 @@ const ProfilePage = ({ user }) => {
                     <button
                         onClick={() => setActiveTab('ikhtisar')}
                         className={`flex-1 py-3 text-center font-condensed font-medium transition-colors relative ${activeTab === 'ikhtisar'
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         Ikhtisar
@@ -325,8 +429,8 @@ const ProfilePage = ({ user }) => {
                     <button
                         onClick={() => setActiveTab('prediksi')}
                         className={`flex-1 py-3 text-center font-condensed font-medium transition-colors relative ${activeTab === 'prediksi'
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-gray-500 dark:text-gray-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-gray-500 dark:text-gray-400'
                             }`}
                     >
                         Prediksi
