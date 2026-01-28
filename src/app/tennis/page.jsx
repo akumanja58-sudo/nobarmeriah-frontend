@@ -57,7 +57,7 @@ export default function TennisPage() {
 
     const filteredGrouped = useMemo(() => {
         if (activeFilter === 'Semua') return grouped;
-        
+
         return grouped.map(group => ({
             ...group,
             matches: group.matches.filter(m => {
@@ -307,13 +307,6 @@ export default function TennisPage() {
 
                     {/* Mobile Layout */}
                     <div className="lg:hidden">
-                        {/* Description */}
-                        <div className="bg-white px-3 py-2 border-b border-gray-200">
-                            <p className="text-xs text-gray-500 font-condensed">
-                                Skor langsung dan jadwal tennis hari ini
-                            </p>
-                        </div>
-
                         {/* Match List */}
                         <div className="p-3">
                             {isLoadingMatches ? (
