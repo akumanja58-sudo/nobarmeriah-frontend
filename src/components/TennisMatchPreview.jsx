@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Trophy, Info, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trophy, Info, Loader2, Award, Circle, BarChart3 } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
@@ -51,11 +51,11 @@ function getCountryFlag(country) {
 // MAIN COMPONENT
 // ============================================================
 
-export default function TennisMatchPreview({ 
-    matches = [], 
-    match, 
-    user, 
-    onMatchClick 
+export default function TennisMatchPreview({
+    matches = [],
+    match,
+    user,
+    onMatchClick
 }) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [activeRankingTab, setActiveRankingTab] = useState('atp');
@@ -66,9 +66,9 @@ export default function TennisMatchPreview({
     // Get featured matches (live or upcoming from top tournaments)
     const featuredMatches = matches.filter(m => {
         const eventType = m.eventType?.toLowerCase() || '';
-        return eventType.includes('atp singles') || 
-               eventType.includes('wta singles') ||
-               m.isLive;
+        return eventType.includes('atp singles') ||
+            eventType.includes('wta singles') ||
+            m.isLive;
     }).slice(0, 10);
 
     const currentMatch = featuredMatches[currentIndex] || match;
@@ -76,11 +76,11 @@ export default function TennisMatchPreview({
     // Auto-slide for featured matches
     useEffect(() => {
         if (!isAutoPlaying || featuredMatches.length <= 1) return;
-        
+
         const interval = setInterval(() => {
             setCurrentIndex(prev => (prev + 1) % featuredMatches.length);
         }, 5000);
-        
+
         return () => clearInterval(interval);
     }, [isAutoPlaying, featuredMatches.length]);
 
@@ -94,7 +94,7 @@ export default function TennisMatchPreview({
         try {
             const response = await fetch(`${API_BASE_URL}/api/tennis/rankings?limit=10`);
             const data = await response.json();
-            
+
             if (data.success && data.rankings) {
                 setRankings(data.rankings);
             }
@@ -127,7 +127,9 @@ export default function TennisMatchPreview({
                 <div className="bg-gradient-to-r from-green-600 to-green-500 px-4 py-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className="text-xl">🎾</span>
+                            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                                <Circle className="w-5 h-5 text-white" />
+                            </div>
                             <div>
                                 <p className="text-white font-semibold text-sm font-condensed">
                                     {currentMatch?.tournament?.name || 'Tennis Match'}
@@ -138,8 +140,9 @@ export default function TennisMatchPreview({
                             </div>
                         </div>
                         {currentMatch?.isLive && (
-                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded animate-pulse font-condensed">
-                                🔴 LIVE
+                            <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded animate-pulse font-condensed flex items-center gap-1">
+                                <span className="w-2 h-2 bg-white rounded-full"></span>
+                                LIVE
                             </span>
                         )}
                     </div>
@@ -157,12 +160,12 @@ export default function TennisMatchPreview({
                                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                     )}
                                     {currentMatch.player1?.logo ? (
-                                        <img 
-                                            src={currentMatch.player1.logo} 
-                                            alt="" 
+                                        <img
+                                            src={currentMatch.player1.logo}
+                                            alt=""
                                             className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                                            onError={(e) => { 
-                                                e.target.style.display = 'none'; 
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
                                             }}
                                         />
                                     ) : (
@@ -171,24 +174,22 @@ export default function TennisMatchPreview({
                                         </div>
                                     )}
                                     <div>
-                                        <p className={`font-semibold text-gray-800 font-condensed ${
-                                            currentMatch.winner === 'First Player' ? 'text-green-600' : ''
-                                        }`}>
+                                        <p className={`font-semibold text-gray-800 font-condensed ${currentMatch.winner === 'First Player' ? 'text-green-600' : ''
+                                            }`}>
                                             {currentMatch.player1?.name || 'Player 1'}
                                         </p>
                                     </div>
                                 </div>
-                                
+
                                 {/* Sets Score */}
                                 <div className="flex items-center gap-2">
                                     {currentMatch.scores?.map((set, idx) => (
-                                        <span 
+                                        <span
                                             key={idx}
-                                            className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed ${
-                                                set.player1 > set.player2 
-                                                    ? 'bg-green-100 text-green-700' 
-                                                    : 'bg-gray-100 text-gray-600'
-                                            }`}
+                                            className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed ${set.player1 > set.player2
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-gray-100 text-gray-600'
+                                                }`}
                                         >
                                             {set.player1}
                                         </span>
@@ -215,12 +216,12 @@ export default function TennisMatchPreview({
                                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                     )}
                                     {currentMatch.player2?.logo ? (
-                                        <img 
-                                            src={currentMatch.player2.logo} 
-                                            alt="" 
+                                        <img
+                                            src={currentMatch.player2.logo}
+                                            alt=""
                                             className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                                            onError={(e) => { 
-                                                e.target.style.display = 'none'; 
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
                                             }}
                                         />
                                     ) : (
@@ -229,24 +230,22 @@ export default function TennisMatchPreview({
                                         </div>
                                     )}
                                     <div>
-                                        <p className={`font-semibold text-gray-800 font-condensed ${
-                                            currentMatch.winner === 'Second Player' ? 'text-green-600' : ''
-                                        }`}>
+                                        <p className={`font-semibold text-gray-800 font-condensed ${currentMatch.winner === 'Second Player' ? 'text-green-600' : ''
+                                            }`}>
                                             {currentMatch.player2?.name || 'Player 2'}
                                         </p>
                                     </div>
                                 </div>
-                                
+
                                 {/* Sets Score */}
                                 <div className="flex items-center gap-2">
                                     {currentMatch.scores?.map((set, idx) => (
-                                        <span 
+                                        <span
                                             key={idx}
-                                            className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed ${
-                                                set.player2 > set.player1 
-                                                    ? 'bg-green-100 text-green-700' 
-                                                    : 'bg-gray-100 text-gray-600'
-                                            }`}
+                                            className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed ${set.player2 > set.player1
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-gray-100 text-gray-600'
+                                                }`}
                                         >
                                             {set.player2}
                                         </span>
@@ -272,7 +271,9 @@ export default function TennisMatchPreview({
                     </div>
                 ) : (
                     <div className="p-8 text-center">
-                        <span className="text-4xl mb-3 block">🎾</span>
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Circle className="w-8 h-8 text-gray-400" />
+                        </div>
                         <p className="text-gray-500 font-condensed">Tidak ada pertandingan</p>
                     </div>
                 )}
@@ -280,13 +281,13 @@ export default function TennisMatchPreview({
                 {/* Navigation */}
                 {featuredMatches.length > 1 && (
                     <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
-                        <button 
+                        <button
                             onClick={handlePrevMatch}
                             className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                         >
                             <ChevronLeft className="w-5 h-5 text-gray-500" />
                         </button>
-                        
+
                         <div className="flex items-center gap-1">
                             {featuredMatches.map((_, idx) => (
                                 <button
@@ -295,14 +296,13 @@ export default function TennisMatchPreview({
                                         setIsAutoPlaying(false);
                                         setCurrentIndex(idx);
                                     }}
-                                    className={`w-2 h-2 rounded-full transition-colors ${
-                                        idx === currentIndex ? 'bg-green-500' : 'bg-gray-300'
-                                    }`}
+                                    className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-green-500' : 'bg-gray-300'
+                                        }`}
                                 />
                             ))}
                         </div>
-                        
-                        <button 
+
+                        <button
                             onClick={handleNextMatch}
                             className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                         >
@@ -318,24 +318,22 @@ export default function TennisMatchPreview({
                 <div className="grid grid-cols-2 border-b border-gray-100">
                     <button
                         onClick={() => setActiveRankingTab('atp')}
-                        className={`flex items-center justify-center gap-2 py-3 transition-colors font-condensed ${
-                            activeRankingTab === 'atp'
-                                ? 'bg-white border-b-2 border-green-500 text-green-600'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
+                        className={`flex items-center justify-center gap-2 py-3 transition-colors font-condensed ${activeRankingTab === 'atp'
+                            ? 'bg-white border-b-2 border-blue-500 text-blue-600'
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
                     >
-                        <span className="text-lg">👔</span>
+                        <Award className={`w-5 h-5 ${activeRankingTab === 'atp' ? 'text-blue-500' : 'text-gray-400'}`} />
                         <span className="font-semibold text-sm">ATP Rankings</span>
                     </button>
                     <button
                         onClick={() => setActiveRankingTab('wta')}
-                        className={`flex items-center justify-center gap-2 py-3 transition-colors font-condensed ${
-                            activeRankingTab === 'wta'
-                                ? 'bg-white border-b-2 border-pink-500 text-pink-600'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
+                        className={`flex items-center justify-center gap-2 py-3 transition-colors font-condensed ${activeRankingTab === 'wta'
+                            ? 'bg-white border-b-2 border-pink-500 text-pink-600'
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
                     >
-                        <span className="text-lg">👗</span>
+                        <Award className={`w-5 h-5 ${activeRankingTab === 'wta' ? 'text-pink-500' : 'text-gray-400'}`} />
                         <span className="font-semibold text-sm">WTA Rankings</span>
                     </button>
                 </div>
@@ -349,14 +347,13 @@ export default function TennisMatchPreview({
                     ) : (
                         <div className="space-y-2">
                             {(activeRankingTab === 'atp' ? rankings.atp : rankings.wta).map((player) => (
-                                <div 
-                                    key={player.playerKey || player.rank} 
+                                <div
+                                    key={player.playerKey || player.rank}
                                     className="flex items-center justify-between py-2 hover:bg-gray-50 rounded-lg px-2 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <span className={`w-6 text-center font-bold font-condensed ${
-                                            player.rank <= 3 ? 'text-green-600' : 'text-gray-400'
-                                        }`}>
+                                        <span className={`w-6 text-center font-bold font-condensed ${player.rank <= 3 ? 'text-green-600' : 'text-gray-400'
+                                            }`}>
                                             {player.rank}
                                         </span>
                                         <span className="text-lg">
@@ -382,7 +379,7 @@ export default function TennisMatchPreview({
                                     </div>
                                 </div>
                             ))}
-                            
+
                             {(activeRankingTab === 'atp' ? rankings.atp : rankings.wta).length === 0 && (
                                 <div className="text-center py-4">
                                     <p className="text-sm text-gray-500 font-condensed">
@@ -405,7 +402,10 @@ export default function TennisMatchPreview({
             {/* Quick Stats */}
             {matches.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm p-4">
-                    <h3 className="font-bold text-gray-800 mb-3 font-condensed">📊 Statistik Hari Ini</h3>
+                    <h3 className="font-bold text-gray-800 mb-3 font-condensed flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-green-500" />
+                        Statistik Hari Ini
+                    </h3>
                     <div className="grid grid-cols-3 gap-3">
                         <div className="bg-red-50 rounded-lg p-3 text-center">
                             <p className="text-2xl font-bold text-red-600 font-condensed">

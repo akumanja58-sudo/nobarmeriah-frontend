@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, ChevronDown, ChevronUp, Trophy, Target, Award, Leaf, Circle } from 'lucide-react';
 
 // ============================================================
 // COUNTRY FLAGS MAPPING
@@ -68,26 +68,45 @@ function getCountryFlag(country) {
 }
 
 function getTournamentIcon(tournamentName, eventType) {
-    if (!tournamentName) return '🎾';
+    const name = (tournamentName || '').toLowerCase();
+    const type = (eventType || '').toLowerCase();
 
-    const name = tournamentName.toLowerCase();
-
-    // Check for Grand Slams
-    if (name.includes('australian open')) return '🏆';
-    if (name.includes('roland garros') || name.includes('french open')) return '🏆';
-    if (name.includes('wimbledon')) return '🏆';
-    if (name.includes('us open')) return '🏆';
-
-    // Check for event type
-    if (eventType) {
-        const type = eventType.toLowerCase();
-        if (type.includes('atp')) return '👔';
-        if (type.includes('wta')) return '👗';
-        if (type.includes('challenger')) return '🎯';
-        if (type.includes('itf')) return '🌱';
+    // Grand Slams - Trophy icon dengan warna gold
+    if (name.includes('australian open') ||
+        name.includes('roland garros') ||
+        name.includes('french open') ||
+        name.includes('wimbledon') ||
+        name.includes('us open')) {
+        return <Trophy className="w-5 h-5 text-yellow-500" />;
     }
 
-    return '🎾';
+    // ATP Finals / WTA Finals
+    if (name.includes('finals')) {
+        return <Trophy className="w-5 h-5 text-purple-500" />;
+    }
+
+    // ATP events
+    if (type.includes('atp')) {
+        return <Award className="w-5 h-5 text-blue-500" />;
+    }
+
+    // WTA events
+    if (type.includes('wta')) {
+        return <Award className="w-5 h-5 text-pink-500" />;
+    }
+
+    // Challenger
+    if (type.includes('challenger')) {
+        return <Target className="w-5 h-5 text-orange-500" />;
+    }
+
+    // ITF
+    if (type.includes('itf')) {
+        return <Leaf className="w-5 h-5 text-green-500" />;
+    }
+
+    // Default - Tennis ball style
+    return <Circle className="w-5 h-5 text-green-500" />;
 }
 
 function formatMatchStatus(match) {
@@ -174,9 +193,9 @@ export default function TennisMatchList({
                             onClick={() => toggleTournament(key)}
                         >
                             <div className="flex items-center gap-3">
-                                <span className="text-xl">
+                                <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">
                                     {getTournamentIcon(group.tournament_name, group.event_type)}
-                                </span>
+                                </div>
                                 <div>
                                     <p className="text-sm font-semibold text-gray-800 font-condensed">
                                         {group.tournament_name}
