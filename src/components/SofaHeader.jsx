@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/utils/supabaseClient';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 export default function SofaHeader({
   user,
   username,
@@ -21,9 +23,24 @@ export default function SofaHeader({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const activeSport = pathname === '/' ? 'football' : pathname.replace('/', '') || 'football';
+  const activeSport = pathname === '/' ? 'football' : pathname.replace('/', '').split('/')[0] || 'football';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('Hari ini');
+
+  // Live counts for all sports
+  const [sportLiveCounts, setSportLiveCounts] = useState({
+    football: 0,
+    tennis: 0,
+    basketball: 0,
+    volleyball: 0,
+    badminton: 0,
+    motorsport: 0,
+    mma: 0,
+    hockey: 0,
+    handball: 0,
+    rugby: 0,
+    cricket: 0
+  });
 
   // Dropdown state
   const [showDropdown, setShowDropdown] = useState(false);
@@ -40,6 +57,57 @@ export default function SofaHeader({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // ============================================================
+  // FETCH LIVE COUNTS FOR ALL SPORTS
+  // ============================================================
+  useEffect(() => {
+    const fetchAllLiveCounts = async () => {
+      try {
+        // Fetch counts in parallel
+        const [footballRes, tennisRes, basketballRes] = await Promise.allSettled([
+          // Football - from existing API or use liveCount prop
+          fetch(`${API_BASE_URL}/api/livescore/live`).then(r => r.json()).catch(() => null),
+          // Tennis
+          fetch(`${API_BASE_URL}/api/tennis/live`).then(r => r.json()).catch(() => null),
+          // Basketball
+          fetch(`${API_BASE_URL}/api/basketball/live`).then(r => r.json()).catch(() => null),
+        ]);
+
+        setSportLiveCounts(prev => ({
+          ...prev,
+          football: footballRes.status === 'fulfilled' && footballRes.value?.count
+            ? footballRes.value.count
+            : (liveCount || 0),
+          tennis: tennisRes.status === 'fulfilled' && tennisRes.value?.count
+            ? tennisRes.value.count
+            : 0,
+          basketball: basketballRes.status === 'fulfilled' && basketballRes.value?.count
+            ? basketballRes.value.count
+            : 0,
+        }));
+
+      } catch (error) {
+        console.error('Error fetching live counts:', error);
+      }
+    };
+
+    fetchAllLiveCounts();
+
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchAllLiveCounts, 60000);
+    return () => clearInterval(interval);
+  }, [liveCount]);
+
+  // Update football count from props if provided
+  useEffect(() => {
+    if (liveCount > 0) {
+      setSportLiveCounts(prev => ({
+        ...prev,
+        football: liveCount
+      }));
+    }
+  }, [liveCount]);
 
   // Handle Logout
   const handleLogout = async (e) => {
@@ -105,20 +173,20 @@ export default function SofaHeader({
     window.location.href = '/';
   };
 
-  // Sports categories dengan badge count
+  // Sports categories dengan badge count - NOW DYNAMIC!
   const sportsCategories = [
     { id: 'trending', name: 'Trending', icon: '/icons/sports/trending.png', count: null },
-    { id: 'football', name: 'Sepak Bola', icon: '/icons/sports/football.png', count: liveCount || null },
-    { id: 'tennis', name: 'Tenis', icon: '/icons/sports/tennis.png', count: null },
-    { id: 'basketball', name: 'Bola Basket', icon: '/icons/sports/basketball.png', count: null },
-    { id: 'volleyball', name: 'Bola Voli', icon: '/icons/sports/volleyball.png', count: null },
-    { id: 'badminton', name: 'Bulutangkis', icon: '/icons/sports/badminton.png', count: null },
-    { id: 'motorsport', name: 'Motorsport', icon: '/icons/sports/motorsport.png', count: null },
-    { id: 'mma', name: 'MMA', icon: '/icons/sports/mma.png', count: null },
-    { id: 'hockey', name: 'Hoki', icon: '/icons/sports/hockey.png', count: null },
-    { id: 'handball', name: 'Bola Tangan', icon: '/icons/sports/handball.png', count: null },
-    { id: 'rugby', name: 'Rugby', icon: '/icons/sports/rugby.png', count: null },
-    { id: 'cricket', name: 'Kriket', icon: '/icons/sports/cricket.png', count: null },
+    { id: 'football', name: 'Sepak Bola', icon: '/icons/sports/football.png', count: sportLiveCounts.football || null },
+    { id: 'tennis', name: 'Tenis', icon: '/icons/sports/tennis.png', count: sportLiveCounts.tennis || null },
+    { id: 'basketball', name: 'Bola Basket', icon: '/icons/sports/basketball.png', count: sportLiveCounts.basketball || null },
+    { id: 'volleyball', name: 'Bola Voli', icon: '/icons/sports/volleyball.png', count: sportLiveCounts.volleyball || null },
+    { id: 'badminton', name: 'Bulutangkis', icon: '/icons/sports/badminton.png', count: sportLiveCounts.badminton || null },
+    { id: 'motorsport', name: 'Motorsport', icon: '/icons/sports/motorsport.png', count: sportLiveCounts.motorsport || null },
+    { id: 'mma', name: 'MMA', icon: '/icons/sports/mma.png', count: sportLiveCounts.mma || null },
+    { id: 'hockey', name: 'Hoki', icon: '/icons/sports/hockey.png', count: sportLiveCounts.hockey || null },
+    { id: 'handball', name: 'Bola Tangan', icon: '/icons/sports/handball.png', count: sportLiveCounts.handball || null },
+    { id: 'rugby', name: 'Rugby', icon: '/icons/sports/rugby.png', count: sportLiveCounts.rugby || null },
+    { id: 'cricket', name: 'Kriket', icon: '/icons/sports/cricket.png', count: sportLiveCounts.cricket || null },
   ];
 
   // Helper: Check if icon is emoji or image path
@@ -197,132 +265,119 @@ export default function SofaHeader({
                     {/* Dropdown Menu */}
                     {showDropdown && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 animate-fade-in">
-                        {/* Profil */}
                         <button
                           onClick={() => {
                             setShowDropdown(false);
-                            router.push('/profile');
+                            onShowProfile?.();
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 transition-colors"
                         >
-                          <User className="w-5 h-5 text-gray-500" />
-                          <span className="font-medium">Profil</span>
+                          <User className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-condensed">Profil Saya</span>
                         </button>
-
-                        {/* Divider */}
-                        <div className="border-t border-gray-100 my-1"></div>
-
-                        {/* Keluar */}
                         <button
-                          type="button"
                           onClick={() => {
-                            // Close dropdown
                             setShowDropdown(false);
-
-                            // Get email
-                            const userEmail = user?.email;
-                            console.log('📧 Logout email:', userEmail);
-
-                            // Clear session via BACKEND API (bypass Supabase auth)
-                            if (userEmail) {
-                              fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/logout`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: userEmail })
-                              })
-                                .then(res => res.json())
-                                .then(data => console.log('✅ Session cleared:', data))
-                                .catch(err => console.log('Session clear error:', err));
-                            }
-
-                            // Sign out (fire & forget)
-                            supabase.auth.signOut().catch(() => { });
-
-                            // Clear storage
-                            localStorage.clear();
-                            sessionStorage.clear();
-
-                            // Redirect
-                            window.location.href = '/';
+                            router.push('/settings');
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 transition-colors"
                         >
-                          <LogOut className="w-5 h-5 text-red-500" />
-                          <span className="font-medium">Keluar</span>
+                          <Settings className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-condensed">Pengaturan</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDropdown(false);
+                            router.push('/favorites');
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Star className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-condensed">Favorit</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDropdown(false);
+                            router.push('/reward-shop');
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Trophy className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-condensed">Reward Shop</span>
+                        </button>
+                        <hr className="my-2 border-gray-100" />
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span className="text-sm font-condensed">Keluar</span>
                         </button>
                       </div>
                     )}
                   </div>
                 ) : (
+                  // User not logged in - Show login button
                   <button
                     onClick={onAuthRedirect}
                     className="flex items-center gap-2 bg-white text-green-600 px-4 py-2 rounded-full font-medium text-sm hover:bg-green-50 transition-colors"
                   >
                     <User className="w-4 h-4" />
-                    <span className="font-condensed">MASUK</span>
+                    <span className="font-condensed">Masuk</span>
                   </button>
                 )}
-                <button className="p-2 hover:bg-green-500 rounded-full transition-colors">
-                  <Star className="w-5 h-5" />
-                </button>
-                <button className="p-2 hover:bg-green-500 rounded-full transition-colors">
-                  <Settings className="w-5 h-5" />
-                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* Sports Navigation - SOFASCORE STYLE */}
-        {/* ============================================================ */}
-        <div className="bg-green-700 text-white">
+        {/* Sports Navigation Bar */}
+        <div className="bg-green-600 border-t border-green-500">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center py-2 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-1 py-2 overflow-x-auto scrollbar-hide">
               {sportsCategories.map((sport) => (
                 <button
                   key={sport.id}
                   onClick={() => {
-                    if (sport.id !== 'football') {
-                      router.push(`/${sport.id}`);
-                    } else {
+                    if (sport.id === 'football') {
                       router.push('/');
+                    } else {
+                      router.push(`/${sport.id}`);
                     }
                   }}
-                  className={`relative flex flex-col items-center justify-center min-w-[70px] px-3 py-2 rounded-xl transition-all cursor-pointer ${sport.id === activeSport
+                  className={`relative flex flex-col items-center justify-center px-3 py-2 rounded-lg min-w-[70px] transition-all ${sport.id === activeSport
                     ? 'bg-green-500'
-                    : 'hover:bg-green-600/50'
+                    : 'hover:bg-green-500/50'
                     }`}
                 >
-                  {/* Badge count */}
-                  {sport.count && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-yellow-400 text-green-800 text-[10px] font-bold rounded-full px-1">
+                  {/* Badge count - Desktop */}
+                  {sport.count > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-yellow-400 text-green-800 text-[10px] font-bold rounded-full px-1">
                       {sport.count}
                     </span>
                   )}
 
-                  {/* Icon - Support emoji atau custom image */}
-                  <div className="mb-1 flex items-center justify-center h-7">
+                  {/* Icon */}
+                  <div className="mb-0.5 flex items-center justify-center h-6">
                     {isEmoji(sport.icon) ? (
-                      <span className="text-2xl">{sport.icon}</span>
+                      <span className="text-xl">{sport.icon}</span>
                     ) : (
                       <>
                         <img
                           src={sport.icon}
                           alt={sport.name}
-                          className="w-7 h-7 object-contain"
+                          className="w-6 h-6 object-contain"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling?.classList.remove('hidden');
                           }}
                         />
-                        {/* Fallback emoji */}
-                        <span className="text-2xl hidden">⚽</span>
+                        <span className="text-xl hidden">⚽</span>
                       </>
                     )}
                   </div>
 
-                  <span className="text-xs font-condensed whitespace-nowrap">
+                  <span className="text-[10px] text-white font-condensed whitespace-nowrap">
                     {sport.name}
                   </span>
                 </button>
@@ -331,14 +386,12 @@ export default function SofaHeader({
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* Sub Header - Title, Tabs, Filters */}
-        {/* ============================================================ */}
-        <div className="bg-gray-50 border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <div className="flex items-center justify-between">
-              {/* Left: Title */}
-              <span className="text-sm text-gray-500 font-condensed">
+        {/* Sub Navigation - Date & Filters */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between py-2">
+              {/* Left side - Description */}
+              <p className="text-sm text-gray-500 font-condensed">
                 {(() => {
                   const sportDescriptions = {
                     'football': 'Skor langsung dan jadwal sepak bola hari ini',
@@ -356,19 +409,12 @@ export default function SofaHeader({
                   };
                   return sportDescriptions[activeSport] || 'Skor langsung dan jadwal hari ini';
                 })()}
-              </span>
+              </p>
 
-              {/* Center: Tabs */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 font-condensed mr-2">Semua</span>
-                <span className="text-sm text-gray-500 font-condensed mr-2">Favorit</span>
-                <span className="text-sm text-gray-500 font-condensed mr-2">Turnamen</span>
-              </div>
-
-              {/* Right: Date & Filters */}
+              {/* Right side - Date picker & Filters */}
               <div className="flex items-center gap-3">
                 {/* Date Picker */}
-                <div className="flex items-center gap-1 mr-2">
+                <div className="flex items-center gap-1">
                   <button className="p-1 hover:bg-gray-100 rounded-full transition-colors">
                     <ChevronLeft className="w-4 h-4 text-gray-500" />
                   </button>
@@ -448,7 +494,7 @@ export default function SofaHeader({
                   }`}
               >
                 {/* Badge count - Mobile */}
-                {sport.count && (
+                {sport.count > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] flex items-center justify-center bg-yellow-400 text-green-800 text-[9px] font-bold rounded-full px-1">
                     {sport.count}
                   </span>
