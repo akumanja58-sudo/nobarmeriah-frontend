@@ -65,13 +65,15 @@ export default function SofaHeader({
     const fetchAllLiveCounts = async () => {
       try {
         // Fetch counts in parallel
-        const [footballRes, tennisRes, basketballRes] = await Promise.allSettled([
+        const [footballRes, tennisRes, basketballRes, volleyballRes] = await Promise.allSettled([
           // Football - from existing API or use liveCount prop
           fetch(`${API_BASE_URL}/api/livescore/live`).then(r => r.json()).catch(() => null),
           // Tennis - get stats.live from main endpoint
           fetch(`${API_BASE_URL}/api/tennis`).then(r => r.json()).catch(() => null),
           // Basketball - get stats.live from main endpoint
           fetch(`${API_BASE_URL}/api/basketball`).then(r => r.json()).catch(() => null),
+          // Volleyball - get stats.live from main endpoint
+          fetch(`${API_BASE_URL}/api/volleyball`).then(r => r.json()).catch(() => null),
         ]);
 
         setSportLiveCounts(prev => ({
@@ -84,6 +86,9 @@ export default function SofaHeader({
             : 0,
           basketball: basketballRes.status === 'fulfilled' && basketballRes.value?.stats?.live
             ? basketballRes.value.stats.live
+            : 0,
+          volleyball: volleyballRes.status === 'fulfilled' && volleyballRes.value?.stats?.live
+            ? volleyballRes.value.stats.live
             : 0,
         }));
 
