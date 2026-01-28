@@ -13,6 +13,7 @@ import ChallengePage from '@/components/ChallengePage';
 import UserProfileModal from '@/components/UserProfileModal';
 import RewardHistoryModal from '@/components/RewardHistoryModal';
 import LoginRequiredModal from '@/components/LoginRequiredModal';
+import OrbitLoader from '@/components/OrbitLoader';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
@@ -286,10 +287,7 @@ export default function HomePage() {
         <div className="lg:hidden bg-white">
           {isLoadingMatches ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto mb-3"></div>
-                <p className="text-gray-500 text-sm font-condensed">Memuat pertandingan...</p>
-              </div>
+              <OrbitLoader size={48} text="Memuat pertandingan..." />
             </div>
           ) : filteredMatches.length === 0 ? (
             <div className="flex items-center justify-center py-20">
@@ -321,9 +319,8 @@ export default function HomePage() {
               {/* Left Column - Match List */}
               <div className="lg:col-span-5">
                 {isLoadingMatches ? (
-                  <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-                    <p className="text-gray-500 font-condensed">Memuat pertandingan...</p>
+                  <div className="bg-white rounded-xl shadow-sm p-8 flex items-center justify-center">
+                    <OrbitLoader size={48} text="Memuat pertandingan..." />
                   </div>
                 ) : (
                   <>

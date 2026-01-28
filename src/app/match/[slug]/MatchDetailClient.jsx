@@ -23,6 +23,7 @@ import MatchVote from '@/components/match-detail/MatchVote';
 import MatchPreStandings from '@/components/match-detail/MatchPreStandings';
 import MatchPrediction from '@/components/match-detail/MatchPrediction';
 import MatchTeamStats from '@/components/match-detail/MatchTeamStats';
+import OrbitLoader from '@/components/OrbitLoader';
 
 import { RefreshCw, Loader2 } from 'lucide-react';
 
@@ -251,10 +252,7 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
     if (isLoadingMatch && !match) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100">
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-green-500 mx-auto mb-4" />
-                    <p className="text-gray-600 font-condensed">Memuat data pertandingan...</p>
-                </div>
+                <OrbitLoader size={48} text="Memuat data pertandingan..." />
             </div>
         );
     }
