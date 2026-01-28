@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Star, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ============================================================
@@ -68,15 +69,15 @@ function getCountryFlag(country) {
 
 function getTournamentIcon(tournamentName, eventType) {
     if (!tournamentName) return '🎾';
-    
+
     const name = tournamentName.toLowerCase();
-    
+
     // Check for Grand Slams
     if (name.includes('australian open')) return '🏆';
     if (name.includes('roland garros') || name.includes('french open')) return '🏆';
     if (name.includes('wimbledon')) return '🏆';
     if (name.includes('us open')) return '🏆';
-    
+
     // Check for event type
     if (eventType) {
         const type = eventType.toLowerCase();
@@ -85,7 +86,7 @@ function getTournamentIcon(tournamentName, eventType) {
         if (type.includes('challenger')) return '🎯';
         if (type.includes('itf')) return '🌱';
     }
-    
+
     return '🎾';
 }
 
@@ -99,7 +100,7 @@ function formatMatchStatus(match) {
 
 function getEventTypeLabel(eventType) {
     if (!eventType) return '';
-    
+
     const labels = {
         'Atp Singles': 'ATP',
         'Wta Singles': 'WTA',
@@ -112,7 +113,7 @@ function getEventTypeLabel(eventType) {
         'Itf Men Doubles': 'ITF M Ganda',
         'Itf Women Doubles': 'ITF W Ganda',
     };
-    
+
     return labels[eventType] || eventType;
 }
 
@@ -120,12 +121,13 @@ function getEventTypeLabel(eventType) {
 // MAIN COMPONENT
 // ============================================================
 
-export default function TennisMatchList({ 
-    matches = [], 
+export default function TennisMatchList({
+    matches = [],
     grouped = [],
-    onMatchClick, 
-    selectedMatch 
+    onMatchClick,
+    selectedMatch
 }) {
+    const router = useRouter();
     const [expandedTournaments, setExpandedTournaments] = useState({});
     const [favoriteMatches, setFavoriteMatches] = useState([]);
 
@@ -138,8 +140,8 @@ export default function TennisMatchList({
 
     const toggleFavorite = (e, matchId) => {
         e.stopPropagation();
-        setFavoriteMatches(prev => 
-            prev.includes(matchId) 
+        setFavoriteMatches(prev =>
+            prev.includes(matchId)
                 ? prev.filter(id => id !== matchId)
                 : [...prev, matchId]
         );
@@ -163,11 +165,11 @@ export default function TennisMatchList({
             {tournamentGroups.map((group) => {
                 const key = group.tournament_key || group.tournament_name;
                 const isCollapsed = expandedTournaments[key];
-                
+
                 return (
                     <div key={key} className="tournament-group bg-white rounded-xl shadow-sm mb-3 overflow-hidden">
                         {/* Tournament Header */}
-                        <div 
+                        <div
                             className="tournament-header flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                             onClick={() => toggleTournament(key)}
                         >
@@ -210,12 +212,14 @@ export default function TennisMatchList({
                                     return (
                                         <div
                                             key={matchId}
-                                            className={`match-row px-4 py-3 border-b border-gray-50 cursor-pointer transition-all ${
-                                                isSelected
+                                            className={`match-row px-4 py-3 border-b border-gray-50 cursor-pointer transition-all ${isSelected
                                                     ? 'bg-green-50 border-l-4 border-l-green-500'
                                                     : 'hover:bg-gray-50'
-                                            }`}
-                                            onClick={() => onMatchClick?.(match)}
+                                                }`}
+                                            onClick={() => {
+                                                onMatchClick?.(match);
+                                                router.push(`/tennis/match/${matchId}`);
+                                            }}
                                         >
                                             {/* Status / Time */}
                                             <div className="flex items-start gap-3">
@@ -249,34 +253,32 @@ export default function TennisMatchList({
                                                                 <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" title="Serving"></span>
                                                             )}
                                                             {match.player1.logo ? (
-                                                                <img 
-                                                                    src={match.player1.logo} 
-                                                                    alt="" 
+                                                                <img
+                                                                    src={match.player1.logo}
+                                                                    alt=""
                                                                     className="w-5 h-5 rounded-full object-cover"
                                                                     onError={(e) => { e.target.style.display = 'none'; }}
                                                                 />
                                                             ) : (
                                                                 <div className="w-5 h-5 bg-gray-200 rounded-full flex-shrink-0"></div>
                                                             )}
-                                                            <span className={`text-sm truncate font-condensed ${
-                                                                isFinished && match.winner === 'First Player'
+                                                            <span className={`text-sm truncate font-condensed ${isFinished && match.winner === 'First Player'
                                                                     ? 'font-bold text-gray-900'
                                                                     : 'text-gray-700'
-                                                            }`}>
+                                                                }`}>
                                                                 {match.player1.name}
                                                             </span>
                                                         </div>
-                                                        
+
                                                         {/* Player 1 Sets */}
                                                         <div className="flex items-center gap-1">
                                                             {match.scores?.map((set, idx) => (
-                                                                <span 
+                                                                <span
                                                                     key={idx}
-                                                                    className={`w-5 text-center text-xs font-condensed ${
-                                                                        set.player1 > set.player2 
-                                                                            ? 'font-bold text-gray-900' 
+                                                                    className={`w-5 text-center text-xs font-condensed ${set.player1 > set.player2
+                                                                            ? 'font-bold text-gray-900'
                                                                             : 'text-gray-500'
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     {set.player1}
                                                                 </span>
@@ -296,34 +298,32 @@ export default function TennisMatchList({
                                                                 <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" title="Serving"></span>
                                                             )}
                                                             {match.player2.logo ? (
-                                                                <img 
-                                                                    src={match.player2.logo} 
-                                                                    alt="" 
+                                                                <img
+                                                                    src={match.player2.logo}
+                                                                    alt=""
                                                                     className="w-5 h-5 rounded-full object-cover"
                                                                     onError={(e) => { e.target.style.display = 'none'; }}
                                                                 />
                                                             ) : (
                                                                 <div className="w-5 h-5 bg-gray-200 rounded-full flex-shrink-0"></div>
                                                             )}
-                                                            <span className={`text-sm truncate font-condensed ${
-                                                                isFinished && match.winner === 'Second Player'
+                                                            <span className={`text-sm truncate font-condensed ${isFinished && match.winner === 'Second Player'
                                                                     ? 'font-bold text-gray-900'
                                                                     : 'text-gray-700'
-                                                            }`}>
+                                                                }`}>
                                                                 {match.player2.name}
                                                             </span>
                                                         </div>
-                                                        
+
                                                         {/* Player 2 Sets */}
                                                         <div className="flex items-center gap-1">
                                                             {match.scores?.map((set, idx) => (
-                                                                <span 
+                                                                <span
                                                                     key={idx}
-                                                                    className={`w-5 text-center text-xs font-condensed ${
-                                                                        set.player2 > set.player1 
-                                                                            ? 'font-bold text-gray-900' 
+                                                                    className={`w-5 text-center text-xs font-condensed ${set.player2 > set.player1
+                                                                            ? 'font-bold text-gray-900'
                                                                             : 'text-gray-500'
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     {set.player2}
                                                                 </span>
@@ -343,11 +343,10 @@ export default function TennisMatchList({
                                                         onClick={(e) => toggleFavorite(e, matchId)}
                                                         className="p-1 hover:bg-gray-100 rounded transition-colors"
                                                     >
-                                                        <Star className={`w-4 h-4 ${
-                                                            isFavorite 
-                                                                ? 'text-yellow-500 fill-yellow-500' 
+                                                        <Star className={`w-4 h-4 ${isFavorite
+                                                                ? 'text-yellow-500 fill-yellow-500'
                                                                 : 'text-gray-300 hover:text-gray-400'
-                                                        }`} />
+                                                            }`} />
                                                     </button>
                                                 </div>
                                             </div>
