@@ -68,10 +68,10 @@ export default function SofaHeader({
         const [footballRes, tennisRes, basketballRes] = await Promise.allSettled([
           // Football - from existing API or use liveCount prop
           fetch(`${API_BASE_URL}/api/livescore/live`).then(r => r.json()).catch(() => null),
-          // Tennis
-          fetch(`${API_BASE_URL}/api/tennis/live`).then(r => r.json()).catch(() => null),
-          // Basketball
-          fetch(`${API_BASE_URL}/api/basketball/live`).then(r => r.json()).catch(() => null),
+          // Tennis - get stats.live from main endpoint
+          fetch(`${API_BASE_URL}/api/tennis`).then(r => r.json()).catch(() => null),
+          // Basketball - get stats.live from main endpoint
+          fetch(`${API_BASE_URL}/api/basketball`).then(r => r.json()).catch(() => null),
         ]);
 
         setSportLiveCounts(prev => ({
@@ -79,11 +79,11 @@ export default function SofaHeader({
           football: footballRes.status === 'fulfilled' && footballRes.value?.count
             ? footballRes.value.count
             : (liveCount || 0),
-          tennis: tennisRes.status === 'fulfilled' && tennisRes.value?.count
-            ? tennisRes.value.count
+          tennis: tennisRes.status === 'fulfilled' && tennisRes.value?.stats?.live
+            ? tennisRes.value.stats.live
             : 0,
-          basketball: basketballRes.status === 'fulfilled' && basketballRes.value?.count
-            ? basketballRes.value.count
+          basketball: basketballRes.status === 'fulfilled' && basketballRes.value?.stats?.live
+            ? basketballRes.value.stats.live
             : 0,
         }));
 
