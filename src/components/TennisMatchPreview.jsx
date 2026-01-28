@@ -63,6 +63,10 @@ export default function TennisMatchPreview({
     const [isLoadingRankings, setIsLoadingRankings] = useState(false);
     const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
+    // Animation states
+    const [slideDirection, setSlideDirection] = useState('next');
+    const [isAnimating, setIsAnimating] = useState(false);
+
     // Get featured matches (live or upcoming from top tournaments)
     const featuredMatches = matches.filter(m => {
         const eventType = m.eventType?.toLowerCase() || '';
@@ -73,12 +77,19 @@ export default function TennisMatchPreview({
 
     const currentMatch = featuredMatches[currentIndex] || match;
 
-    // Auto-slide for featured matches
+    // ============================================================
+    // AUTO-PLAY & NAVIGATION WITH SMOOTH ANIMATION
+    // ============================================================
     useEffect(() => {
         if (!isAutoPlaying || featuredMatches.length <= 1) return;
 
         const interval = setInterval(() => {
-            setCurrentIndex(prev => (prev + 1) % featuredMatches.length);
+            setSlideDirection('next');
+            setIsAnimating(true);
+            setTimeout(() => {
+                setCurrentIndex(prev => (prev + 1) % featuredMatches.length);
+                setTimeout(() => setIsAnimating(false), 50);
+            }, 200);
         }, 5000);
 
         return () => clearInterval(interval);
@@ -106,13 +117,46 @@ export default function TennisMatchPreview({
     };
 
     const handlePrevMatch = () => {
+        if (isAnimating) return;
         setIsAutoPlaying(false);
-        setCurrentIndex(prev => prev === 0 ? featuredMatches.length - 1 : prev - 1);
+        setSlideDirection('prev');
+        setIsAnimating(true);
+
+        setTimeout(() => {
+            setCurrentIndex(prev => prev === 0 ? featuredMatches.length - 1 : prev - 1);
+            setTimeout(() => setIsAnimating(false), 50);
+        }, 200);
     };
 
     const handleNextMatch = () => {
+        if (isAnimating) return;
         setIsAutoPlaying(false);
-        setCurrentIndex(prev => (prev + 1) % featuredMatches.length);
+        setSlideDirection('next');
+        setIsAnimating(true);
+
+        setTimeout(() => {
+            setCurrentIndex(prev => (prev + 1) % featuredMatches.length);
+            setTimeout(() => setIsAnimating(false), 50);
+        }, 200);
+    };
+
+    const goToIndex = (index) => {
+        if (isAnimating || index === currentIndex) return;
+        setIsAutoPlaying(false);
+        setSlideDirection(index > currentIndex ? 'next' : 'prev');
+        setIsAnimating(true);
+
+        setTimeout(() => {
+            setCurrentIndex(index);
+            setTimeout(() => setIsAnimating(false), 50);
+        }, 200);
+    };
+
+    // Animation classes for smooth slide
+    const getSlideAnimationClass = () => {
+        if (!isAnimating) return 'translate-x-0 opacity-100';
+        if (slideDirection === 'next') return '-translate-x-4 opacity-0';
+        return 'translate-x-4 opacity-0';
     };
 
     // ============================================================
@@ -148,142 +192,157 @@ export default function TennisMatchPreview({
                     </div>
                 </div>
 
-                {/* Match Content */}
-                {currentMatch ? (
-                    <div className="p-4">
-                        {/* Players */}
-                        <div className="space-y-4">
-                            {/* Player 1 */}
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    {currentMatch.player1?.isServing && currentMatch.isLive && (
-                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                    )}
-                                    {currentMatch.player1?.logo ? (
-                                        <img
-                                            src={currentMatch.player1.logo}
-                                            alt=""
-                                            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                            {currentMatch.player1?.name?.[0] || 'P'}
+                {/* Match Content - Smooth Slide Animation */}
+                <div className="overflow-hidden">
+                    <div className={`transform transition-all duration-300 ease-out ${getSlideAnimationClass()}`}>
+                        {currentMatch ? (
+                            <div className="p-4">
+                                {/* Players */}
+                                <div className="space-y-4">
+                                    {/* Player 1 */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {currentMatch.player1?.isServing && currentMatch.isLive && (
+                                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                            )}
+                                            {currentMatch.player1?.logo ? (
+                                                <img
+                                                    src={currentMatch.player1.logo}
+                                                    alt=""
+                                                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                    {currentMatch.player1?.name?.[0] || 'P'}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="font-semibold text-gray-800 text-sm font-condensed">
+                                                    {currentMatch.player1?.name || 'Player 1'}
+                                                </p>
+                                                {currentMatch.player1?.country && (
+                                                    <p className="text-xs text-gray-500">
+                                                        {getCountryFlag(currentMatch.player1.country)} {currentMatch.player1.country}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div>
-                                        <p className={`font-semibold text-gray-800 font-condensed ${currentMatch.winner === 'First Player' ? 'text-green-600' : ''
-                                            }`}>
-                                            {currentMatch.player1?.name || 'Player 1'}
-                                        </p>
+
+                                        {/* Score */}
+                                        <div className="flex items-center gap-2">
+                                            {currentMatch.score?.sets?.map((set, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className={`w-7 h-7 flex items-center justify-center rounded text-sm font-bold ${set.player1 > set.player2
+                                                            ? 'bg-green-500 text-white'
+                                                            : set.player1 < set.player2
+                                                                ? 'bg-red-500 text-white'
+                                                                : 'bg-gray-200 text-gray-600'
+                                                        }`}
+                                                >
+                                                    {set.player1}
+                                                </span>
+                                            ))}
+                                            {currentMatch.score?.currentGame?.player1 !== undefined && currentMatch.isLive && (
+                                                <span className="w-7 h-7 flex items-center justify-center rounded text-sm font-bold bg-yellow-400 text-gray-800">
+                                                    {currentMatch.score.currentGame.player1}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* VS Divider */}
+                                    <div className="flex items-center justify-center">
+                                        <span className="text-xs text-gray-400 font-condensed">vs</span>
+                                    </div>
+
+                                    {/* Player 2 */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {currentMatch.player2?.isServing && currentMatch.isLive && (
+                                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                            )}
+                                            {currentMatch.player2?.logo ? (
+                                                <img
+                                                    src={currentMatch.player2.logo}
+                                                    alt=""
+                                                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                    {currentMatch.player2?.name?.[0] || 'P'}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="font-semibold text-gray-800 text-sm font-condensed">
+                                                    {currentMatch.player2?.name || 'Player 2'}
+                                                </p>
+                                                {currentMatch.player2?.country && (
+                                                    <p className="text-xs text-gray-500">
+                                                        {getCountryFlag(currentMatch.player2.country)} {currentMatch.player2.country}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Score */}
+                                        <div className="flex items-center gap-2">
+                                            {currentMatch.score?.sets?.map((set, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className={`w-7 h-7 flex items-center justify-center rounded text-sm font-bold ${set.player2 > set.player1
+                                                            ? 'bg-green-500 text-white'
+                                                            : set.player2 < set.player1
+                                                                ? 'bg-red-500 text-white'
+                                                                : 'bg-gray-200 text-gray-600'
+                                                        }`}
+                                                >
+                                                    {set.player2}
+                                                </span>
+                                            ))}
+                                            {currentMatch.score?.currentGame?.player2 !== undefined && currentMatch.isLive && (
+                                                <span className="w-7 h-7 flex items-center justify-center rounded text-sm font-bold bg-yellow-400 text-gray-800">
+                                                    {currentMatch.score.currentGame.player2}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Sets Score */}
-                                <div className="flex items-center gap-2">
-                                    {currentMatch.scores?.map((set, idx) => (
-                                        <span
-                                            key={idx}
-                                            className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed ${set.player1 > set.player2
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-gray-100 text-gray-600'
-                                                }`}
-                                        >
-                                            {set.player1}
-                                        </span>
-                                    ))}
-                                    {currentMatch.isLive && currentMatch.gameScore !== '-' && (
-                                        <span className="w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed bg-red-100 text-red-600">
-                                            {currentMatch.gameScore?.split(' - ')[0]}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* VS Divider */}
-                            <div className="flex items-center justify-center">
-                                <div className="h-px bg-gray-200 flex-1"></div>
-                                <span className="px-3 text-xs text-gray-400 font-condensed">VS</span>
-                                <div className="h-px bg-gray-200 flex-1"></div>
-                            </div>
-
-                            {/* Player 2 */}
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    {currentMatch.player2?.isServing && currentMatch.isLive && (
-                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                    )}
-                                    {currentMatch.player2?.logo ? (
-                                        <img
-                                            src={currentMatch.player2.logo}
-                                            alt=""
-                                            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                            {currentMatch.player2?.name?.[0] || 'P'}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <p className={`font-semibold text-gray-800 font-condensed ${currentMatch.winner === 'Second Player' ? 'text-green-600' : ''
-                                            }`}>
-                                            {currentMatch.player2?.name || 'Player 2'}
-                                        </p>
+                                {/* Match Info */}
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                                    <div className="text-xs text-gray-500 font-condensed">
+                                        {currentMatch.round}
+                                    </div>
+                                    <div className="text-xs text-gray-500 font-condensed">
+                                        {currentMatch.date} • {currentMatch.time}
                                     </div>
                                 </div>
-
-                                {/* Sets Score */}
-                                <div className="flex items-center gap-2">
-                                    {currentMatch.scores?.map((set, idx) => (
-                                        <span
-                                            key={idx}
-                                            className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed ${set.player2 > set.player1
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-gray-100 text-gray-600'
-                                                }`}
-                                        >
-                                            {set.player2}
-                                        </span>
-                                    ))}
-                                    {currentMatch.isLive && currentMatch.gameScore !== '-' && (
-                                        <span className="w-8 h-8 flex items-center justify-center rounded text-sm font-bold font-condensed bg-red-100 text-red-600">
-                                            {currentMatch.gameScore?.split(' - ')[1]}
-                                        </span>
-                                    )}
+                            </div>
+                        ) : (
+                            <div className="p-8 text-center">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <Circle className="w-8 h-8 text-gray-400" />
                                 </div>
+                                <p className="text-gray-500 font-condensed">Tidak ada pertandingan</p>
                             </div>
-                        </div>
-
-                        {/* Match Info */}
-                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                            <div className="text-xs text-gray-500 font-condensed">
-                                {currentMatch.tournament?.round || currentMatch.status}
-                            </div>
-                            <div className="text-xs text-gray-500 font-condensed">
-                                {currentMatch.date} • {currentMatch.time}
-                            </div>
-                        </div>
+                        )}
                     </div>
-                ) : (
-                    <div className="p-8 text-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <Circle className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 font-condensed">Tidak ada pertandingan</p>
-                    </div>
-                )}
+                </div>
 
                 {/* Navigation */}
                 {featuredMatches.length > 1 && (
                     <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
                         <button
                             onClick={handlePrevMatch}
-                            className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                            disabled={isAnimating}
+                            className="p-1 hover:bg-gray-200 rounded-full transition-colors disabled:opacity-50"
                         >
                             <ChevronLeft className="w-5 h-5 text-gray-500" />
                         </button>
@@ -292,10 +351,7 @@ export default function TennisMatchPreview({
                             {featuredMatches.map((_, idx) => (
                                 <button
                                     key={idx}
-                                    onClick={() => {
-                                        setIsAutoPlaying(false);
-                                        setCurrentIndex(idx);
-                                    }}
+                                    onClick={() => goToIndex(idx)}
                                     className={`w-2 h-2 rounded-full transition-colors ${idx === currentIndex ? 'bg-green-500' : 'bg-gray-300'
                                         }`}
                                 />
@@ -304,7 +360,8 @@ export default function TennisMatchPreview({
 
                         <button
                             onClick={handleNextMatch}
-                            className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                            disabled={isAnimating}
+                            className="p-1 hover:bg-gray-200 rounded-full transition-colors disabled:opacity-50"
                         >
                             <ChevronRight className="w-5 h-5 text-gray-500" />
                         </button>
@@ -319,8 +376,8 @@ export default function TennisMatchPreview({
                     <button
                         onClick={() => setActiveRankingTab('atp')}
                         className={`flex items-center justify-center gap-2 py-3 transition-colors font-condensed ${activeRankingTab === 'atp'
-                            ? 'bg-white border-b-2 border-blue-500 text-blue-600'
-                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                ? 'bg-white border-b-2 border-blue-500 text-blue-600'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                             }`}
                     >
                         <Award className={`w-5 h-5 ${activeRankingTab === 'atp' ? 'text-blue-500' : 'text-gray-400'}`} />
@@ -329,8 +386,8 @@ export default function TennisMatchPreview({
                     <button
                         onClick={() => setActiveRankingTab('wta')}
                         className={`flex items-center justify-center gap-2 py-3 transition-colors font-condensed ${activeRankingTab === 'wta'
-                            ? 'bg-white border-b-2 border-pink-500 text-pink-600'
-                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                ? 'bg-white border-b-2 border-pink-500 text-pink-600'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                             }`}
                     >
                         <Award className={`w-5 h-5 ${activeRankingTab === 'wta' ? 'text-pink-500' : 'text-gray-400'}`} />
