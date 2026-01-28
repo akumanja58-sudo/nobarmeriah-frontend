@@ -339,7 +339,23 @@ export default function SofaHeader({
             <div className="flex items-center justify-between">
               {/* Left: Title */}
               <span className="text-sm text-gray-500 font-condensed">
-                Skor langsung dan jadwal sepak bola hari ini
+                {(() => {
+                  const sportDescriptions = {
+                    'football': 'Skor langsung dan jadwal sepak bola hari ini',
+                    'tennis': 'Skor langsung dan jadwal tennis hari ini',
+                    'basketball': 'Skor langsung dan jadwal bola basket hari ini',
+                    'volleyball': 'Skor langsung dan jadwal bola voli hari ini',
+                    'badminton': 'Skor langsung dan jadwal bulutangkis hari ini',
+                    'motorsport': 'Jadwal dan hasil motorsport hari ini',
+                    'mma': 'Jadwal dan hasil MMA hari ini',
+                    'hockey': 'Skor langsung dan jadwal hoki hari ini',
+                    'handball': 'Skor langsung dan jadwal bola tangan hari ini',
+                    'rugby': 'Skor langsung dan jadwal rugby hari ini',
+                    'cricket': 'Skor langsung dan jadwal kriket hari ini',
+                    'trending': 'Pertandingan trending hari ini',
+                  };
+                  return sportDescriptions[activeSport] || 'Skor langsung dan jadwal hari ini';
+                })()}
               </span>
 
               {/* Center: Tabs */}
