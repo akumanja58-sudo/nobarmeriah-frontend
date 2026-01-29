@@ -7,6 +7,7 @@ import {
   Trophy, LogOut
 } from 'lucide-react';
 import { supabase } from '@/utils/supabaseClient';
+import SearchModal from '@/components/SearchModal';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
@@ -24,7 +25,6 @@ export default function SofaHeader({
   const router = useRouter();
   const pathname = usePathname();
   const activeSport = pathname === '/' ? 'football' : pathname.replace('/', '').split('/')[0] || 'football';
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('Hari ini');
 
   // Live counts for all sports
@@ -45,6 +45,7 @@ export default function SofaHeader({
   // Dropdown state
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -217,9 +218,7 @@ export default function SofaHeader({
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Searching:', searchQuery);
-    }
+    setShowSearchModal(true);
   };
 
   return (
@@ -245,19 +244,16 @@ export default function SofaHeader({
                 />
               </div>
 
-              {/* Search Bar */}
-              <form onSubmit={handleSearch} className="flex-1 max-w-xl">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Cari pertandingan, tim, pemain, dan lain-lain"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 text-sm"
-                  />
-                </div>
-              </form>
+              {/* Search Bar - Click to open modal */}
+              <div className="flex-1 max-w-xl">
+                <button
+                  onClick={() => setShowSearchModal(true)}
+                  className="w-full flex items-center gap-2 pl-4 pr-4 py-2.5 rounded-full bg-white text-gray-400 hover:bg-gray-50 transition-colors text-sm text-left"
+                >
+                  <Search className="w-5 h-5" />
+                  <span className="font-condensed">Cari pertandingan, tim, pemain, dan lain-lain</span>
+                </button>
+              </div>
 
               {/* Right Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -627,6 +623,13 @@ export default function SofaHeader({
           animation: fade-in 0.15s ease-out;
         }
       `}</style>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSearch={handleSearch}
+      />
     </div>
   );
 }

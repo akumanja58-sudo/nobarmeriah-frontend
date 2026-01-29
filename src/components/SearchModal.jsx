@@ -26,6 +26,16 @@ const sportColors = {
     formula1: 'bg-red-100 text-red-700'
 };
 
+// Sport labels
+const sportLabels = {
+    football: 'Sepak Bola',
+    tennis: 'Tenis',
+    basketball: 'Basket',
+    volleyball: 'Voli',
+    baseball: 'Baseball',
+    formula1: 'F1'
+};
+
 // Type labels
 const typeLabels = {
     team: 'Tim',
@@ -37,7 +47,8 @@ const typeLabels = {
 export default function SearchModal({ isOpen, onClose }) {
     const router = useRouter();
     const inputRef = useRef(null);
-    
+    const modalRef = useRef(null);
+
     const [query, setQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
@@ -47,9 +58,11 @@ export default function SearchModal({ isOpen, onClose }) {
 
     // Load recent searches from localStorage
     useEffect(() => {
-        const saved = localStorage.getItem('recent_searches');
-        if (saved) {
-            setRecentSearches(JSON.parse(saved));
+        if (isOpen) {
+            const saved = localStorage.getItem('recent_searches');
+            if (saved) {
+                setRecentSearches(JSON.parse(saved));
+            }
         }
     }, [isOpen]);
 
@@ -60,7 +73,34 @@ export default function SearchModal({ isOpen, onClose }) {
                 inputRef.current?.focus();
             }, 100);
         }
+
+        // Reset state when modal closes
+        if (!isOpen) {
+            setQuery('');
+            setSuggestions([]);
+            setSearchResults([]);
+            setShowResults(false);
+        }
     }, [isOpen]);
+
+    // Close on escape key
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'hidden';
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape);
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, onClose]);
 
     // Fetch suggestions on query change (debounced)
     useEffect(() => {
@@ -75,7 +115,7 @@ export default function SearchModal({ isOpen, onClose }) {
                 setIsLoading(true);
                 const response = await fetch(`${API_BASE_URL}/api/search/suggestions?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     setSuggestions(data.suggestions || []);
                 }
@@ -103,7 +143,7 @@ export default function SearchModal({ isOpen, onClose }) {
 
             if (data.success) {
                 setSearchResults(data.results?.matches || []);
-                
+
                 // Save to recent searches
                 saveRecentSearch(q);
             }
@@ -137,7 +177,7 @@ export default function SearchModal({ isOpen, onClose }) {
     const handleMatchClick = (match) => {
         const sport = match.sport || 'football';
         const id = match.id || match.fixture?.id;
-        
+
         // Navigate to match detail
         switch (sport) {
             case 'football':
@@ -158,7 +198,7 @@ export default function SearchModal({ isOpen, onClose }) {
             default:
                 router.push(`/match/${id}`);
         }
-        
+
         onClose();
     };
 
@@ -167,24 +207,24 @@ export default function SearchModal({ isOpen, onClose }) {
         if (e.key === 'Enter') {
             handleSearch();
         }
-        if (e.key === 'Escape') {
-            onClose();
-        }
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[100]">
             {/* Backdrop */}
-            <div 
+            <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative max-w-2xl mx-auto mt-20 mx-4 lg:mx-auto">
-                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="relative max-w-2xl mx-auto mt-20 px-4">
+                <div
+                    ref={modalRef}
+                    className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in"
+                >
                     {/* Search Input */}
                     <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
                         <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
@@ -195,28 +235,29 @@ export default function SearchModal({ isOpen, onClose }) {
                             onChange={(e) => setQuery(e.target.value)}
                             onKeyDown={handleKeyPress}
                             placeholder="Cari pertandingan, tim, pemain, dan lain-lain"
-                            className="flex-1 text-gray-800 placeholder-gray-400 outline-none font-condensed"
+                            className="flex-1 text-gray-800 placeholder-gray-400 outline-none font-condensed text-base"
                         />
                         {isLoading && (
                             <Loader2 className="w-5 h-5 text-green-500 animate-spin flex-shrink-0" />
                         )}
                         {query && !isLoading && (
-                            <button 
+                            <button
                                 onClick={() => {
                                     setQuery('');
                                     setSuggestions([]);
                                     setShowResults(false);
+                                    inputRef.current?.focus();
                                 }}
-                                className="p-1 hover:bg-gray-100 rounded-full"
+                                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                             >
                                 <X className="w-4 h-4 text-gray-400" />
                             </button>
                         )}
                         <button
                             onClick={onClose}
-                            className="ml-2 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 font-condensed"
+                            className="ml-2 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 font-condensed hover:bg-gray-100 rounded-lg transition-colors"
                         >
-                            Batal
+                            Tutup
                         </button>
                     </div>
 
@@ -225,24 +266,26 @@ export default function SearchModal({ isOpen, onClose }) {
                         {/* Suggestions */}
                         {suggestions.length > 0 && !showResults && (
                             <div className="p-4">
-                                <p className="text-xs text-gray-500 font-condensed mb-2 flex items-center gap-1">
+                                <p className="text-xs text-gray-500 font-condensed mb-3 flex items-center gap-1">
                                     <TrendingUp className="w-3 h-3" />
-                                    Saran
+                                    Saran Pencarian
                                 </p>
                                 <div className="space-y-1">
                                     {suggestions.map((suggestion, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleSuggestionClick(suggestion)}
-                                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-xl transition-colors text-left"
                                         >
-                                            <span className="text-lg">{sportIcons[suggestion.sport] || '🏆'}</span>
+                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${sportColors[suggestion.sport] || 'bg-gray-100'}`}>
+                                                <span className="text-lg">{sportIcons[suggestion.sport] || '🏆'}</span>
+                                            </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium text-gray-800 font-condensed truncate">
                                                     {suggestion.name}
                                                 </p>
                                                 <p className="text-xs text-gray-400 font-condensed">
-                                                    {typeLabels[suggestion.type] || suggestion.type}
+                                                    {typeLabels[suggestion.type] || suggestion.type} • {sportLabels[suggestion.sport] || suggestion.sport}
                                                 </p>
                                             </div>
                                             <ChevronRight className="w-4 h-4 text-gray-300" />
@@ -257,11 +300,11 @@ export default function SearchModal({ isOpen, onClose }) {
                             <div className="p-4">
                                 {searchResults.length > 0 ? (
                                     <>
-                                        <p className="text-xs text-gray-500 font-condensed mb-2">
-                                            {searchResults.length} hasil ditemukan
+                                        <p className="text-xs text-gray-500 font-condensed mb-3">
+                                            {searchResults.length} hasil ditemukan untuk "{query}"
                                         </p>
                                         <div className="space-y-2">
-                                            {searchResults.map((match, idx) => {
+                                            {searchResults.slice(0, 10).map((match, idx) => {
                                                 const homeTeam = match.homeTeam?.name || match.teams?.home?.name || '-';
                                                 const awayTeam = match.awayTeam?.name || match.teams?.away?.name || '-';
                                                 const league = match.league?.name || '-';
@@ -274,8 +317,8 @@ export default function SearchModal({ isOpen, onClose }) {
                                                         className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left"
                                                     >
                                                         {/* Sport Badge */}
-                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${sportColors[sport] || 'bg-gray-100'}`}>
-                                                            <span className="text-lg">{sportIcons[sport] || '🏆'}</span>
+                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${sportColors[sport] || 'bg-gray-100'}`}>
+                                                            <span className="text-xl">{sportIcons[sport] || '🏆'}</span>
                                                         </div>
 
                                                         {/* Match Info */}
@@ -286,19 +329,30 @@ export default function SearchModal({ isOpen, onClose }) {
                                                             <p className="text-xs text-gray-500 font-condensed truncate">
                                                                 {league}
                                                             </p>
+                                                            <p className="text-xs text-gray-400 font-condensed">
+                                                                {sportLabels[sport] || sport}
+                                                            </p>
                                                         </div>
 
                                                         {/* Live Badge or Score */}
                                                         {match.isLive ? (
-                                                            <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded font-condensed">
-                                                                LIVE
-                                                            </span>
+                                                            <div className="text-right">
+                                                                <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded font-condensed">
+                                                                    LIVE
+                                                                </span>
+                                                                <p className="text-sm font-bold text-gray-800 font-condensed mt-1">
+                                                                    {match.homeScore ?? match.goals?.home ?? 0} - {match.awayScore ?? match.goals?.away ?? 0}
+                                                                </p>
+                                                            </div>
                                                         ) : match.isFinished ? (
-                                                            <span className="text-sm font-bold text-gray-800 font-condensed">
-                                                                {match.homeScore ?? match.goals?.home ?? '-'} - {match.awayScore ?? match.goals?.away ?? '-'}
-                                                            </span>
+                                                            <div className="text-right">
+                                                                <span className="text-xs text-gray-400 font-condensed">FT</span>
+                                                                <p className="text-sm font-bold text-gray-800 font-condensed">
+                                                                    {match.homeScore ?? match.goals?.home ?? '-'} - {match.awayScore ?? match.goals?.away ?? '-'}
+                                                                </p>
+                                                            </div>
                                                         ) : (
-                                                            <span className="text-xs text-gray-400 font-condensed">
+                                                            <span className="text-sm text-gray-600 font-condensed">
                                                                 {match.time?.substring(0, 5) || match.fixture?.time || '-'}
                                                             </span>
                                                         )}
@@ -306,10 +360,16 @@ export default function SearchModal({ isOpen, onClose }) {
                                                 );
                                             })}
                                         </div>
+
+                                        {searchResults.length > 10 && (
+                                            <p className="text-center text-xs text-gray-400 mt-4 font-condensed">
+                                                Menampilkan 10 dari {searchResults.length} hasil
+                                            </p>
+                                        )}
                                     </>
                                 ) : (
                                     <div className="text-center py-8">
-                                        <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                        <Search className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                                         <p className="text-gray-500 font-condensed">Tidak ada hasil untuk "{query}"</p>
                                         <p className="text-sm text-gray-400 font-condensed mt-1">Coba kata kunci lain</p>
                                     </div>
@@ -320,12 +380,12 @@ export default function SearchModal({ isOpen, onClose }) {
                         {/* Recent Searches (when no query) */}
                         {!query && recentSearches.length > 0 && (
                             <div className="p-4">
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center justify-between mb-3">
                                     <p className="text-xs text-gray-500 font-condensed flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
                                         Pencarian Terakhir
                                     </p>
-                                    <button 
+                                    <button
                                         onClick={clearRecentSearches}
                                         className="text-xs text-red-500 hover:text-red-600 font-condensed"
                                     >
@@ -340,10 +400,11 @@ export default function SearchModal({ isOpen, onClose }) {
                                                 setQuery(search);
                                                 handleSearch(search);
                                             }}
-                                            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors text-left"
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-xl transition-colors text-left"
                                         >
                                             <Clock className="w-4 h-4 text-gray-300" />
-                                            <span className="text-sm text-gray-600 font-condensed">{search}</span>
+                                            <span className="flex-1 text-sm text-gray-600 font-condensed">{search}</span>
+                                            <ChevronRight className="w-4 h-4 text-gray-300" />
                                         </button>
                                     ))}
                                 </div>
@@ -353,14 +414,46 @@ export default function SearchModal({ isOpen, onClose }) {
                         {/* Empty State */}
                         {!query && recentSearches.length === 0 && (
                             <div className="p-8 text-center">
-                                <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                <Search className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                                 <p className="text-gray-500 font-condensed">Cari pertandingan, tim, atau liga</p>
                                 <p className="text-sm text-gray-400 font-condensed mt-1">Ketik minimal 2 karakter</p>
+
+                                {/* Quick search suggestions */}
+                                <div className="flex flex-wrap justify-center gap-2 mt-4">
+                                    {['Manchester United', 'Barcelona', 'Lakers', 'Persib'].map((term) => (
+                                        <button
+                                            key={term}
+                                            onClick={() => {
+                                                setQuery(term);
+                                                handleSearch(term);
+                                            }}
+                                            className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-xs font-condensed hover:bg-gray-200 transition-colors"
+                                        >
+                                            {term}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
+
+            <style jsx>{`
+                @keyframes fade-in {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                .animate-fade-in {
+                    animation: fade-in 0.2s ease-out;
+                }
+            `}</style>
         </div>
     );
 }
