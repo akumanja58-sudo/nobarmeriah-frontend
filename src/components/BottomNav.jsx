@@ -40,14 +40,14 @@ export default function BottomNav() {
       name: 'Cari',
       icon: Search,
       path: '/search',
-      action: () => router.push('/trending')
+      action: () => router.push('/search')  // ✅ Fixed: go to search page
     },
     {
       id: 'favorite',
       name: 'Favorit',
       icon: Star,
       path: '/favorites',
-      action: () => router.push('/trending')
+      action: () => router.push('/favorites')  // ✅ Fixed: go to favorites page
     },
     {
       id: 'profile',
@@ -62,8 +62,14 @@ export default function BottomNav() {
     if (item.id === 'home') {
       return pathname === '/' || pathname.startsWith('/match');
     }
+    if (item.id === 'search') {
+      return pathname === '/search';
+    }
+    if (item.id === 'favorite') {
+      return pathname === '/favorites';
+    }
     if (item.id === 'profile') {
-      return pathname === '/profile';
+      return pathname === '/profile' || pathname.startsWith('/auth');
     }
     return pathname === item.path;
   };
