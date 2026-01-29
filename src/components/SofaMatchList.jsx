@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Star, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ============================================================
 // LOGO KHUSUS UNTUK TOURNAMENT INTERNASIONAL
