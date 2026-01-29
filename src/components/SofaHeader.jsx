@@ -46,6 +46,7 @@ export default function SofaHeader({
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [favoriteCount, setFavoriteCount] = useState(0);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -119,6 +120,32 @@ export default function SofaHeader({
       }));
     }
   }, [liveCount]);
+
+  useEffect(() => {
+    const loadFavoriteCount = () => {
+      const footballFavs = JSON.parse(localStorage.getItem('football_favorites') || '[]');
+      const tennisFavs = JSON.parse(localStorage.getItem('tennis_favorites') || '[]');
+      const basketballFavs = JSON.parse(localStorage.getItem('basketball_favorites') || '[]');
+      const volleyballFavs = JSON.parse(localStorage.getItem('volleyball_favorites') || '[]');
+      const baseballFavs = JSON.parse(localStorage.getItem('baseball_favorites') || '[]');
+
+      const total = footballFavs.length + tennisFavs.length + basketballFavs.length + volleyballFavs.length + baseballFavs.length;
+      setFavoriteCount(total);
+    };
+
+    loadFavoriteCount();
+
+    // Listen for storage changes (kalau user add/remove favorite di tab lain)
+    window.addEventListener('storage', loadFavoriteCount);
+
+    // Also refresh every 5 seconds to catch changes in same tab
+    const interval = setInterval(loadFavoriteCount, 5000);
+
+    return () => {
+      window.removeEventListener('storage', loadFavoriteCount);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Handle Logout
   const handleLogout = async (e) => {
@@ -450,6 +477,19 @@ export default function SofaHeader({
                     )}
                   </button>
                 ))}
+                {/* Favorite Button */}
+                <button
+                  onClick={() => router.push('/favorites')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors font-condensed bg-yellow-50 text-yellow-600 border border-yellow-300 hover:bg-yellow-100"
+                >
+                  <Star className="w-4 h-4 fill-yellow-500" />
+                  Favorit
+                  {favoriteCount > 0 && (
+                    <span className="text-xs text-yellow-500">
+                      ({favoriteCount})
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </div>
