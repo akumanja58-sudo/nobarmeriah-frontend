@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 // ============================================================
 // LOGO KHUSUS UNTUK TOURNAMENT INTERNASIONAL
@@ -212,6 +213,14 @@ function getCountryFlag(country) {
 export default function SofaMatchList({ matches = [], onMatchClick, selectedMatch }) {
   const [expandedLeagues, setExpandedLeagues] = useState({});
   const [favoriteMatches, setFavoriteMatches] = useState([]);
+
+  // Load favorites from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('football_favorites');
+    if (saved) {
+      setFavoriteMatches(JSON.parse(saved));
+    }
+  }, []);
 
   // ============================================================
   // LEAGUE TIER SYSTEM - Liga besar di atas!
@@ -510,11 +519,19 @@ export default function SofaMatchList({ matches = [], onMatchClick, selectedMatc
 
   const toggleFavorite = (e, matchId) => {
     e.stopPropagation();
-    setFavoriteMatches(prev =>
-      prev.includes(matchId)
-        ? prev.filter(id => id !== matchId)
-        : [...prev, matchId]
-    );
+
+    let newFavorites;
+    if (favoriteMatches.includes(matchId)) {
+      newFavorites = favoriteMatches.filter(id => id !== matchId);
+      console.log('⭐ Removed from favorites:', matchId);
+    } else {
+      newFavorites = [...favoriteMatches, matchId];
+      console.log('⭐ Added to favorites:', matchId);
+    }
+
+    setFavoriteMatches(newFavorites);
+    localStorage.setItem('football_favorites', JSON.stringify(newFavorites));
+    console.log('📦 Saved favorites:', newFavorites);
   };
 
   return (
