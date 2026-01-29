@@ -1,12 +1,73 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Star, Share2, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function MatchHeader({ match, isLive, isFinished }) {
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
+
+  // Get match ID
+  const matchId = match?.fixture_id || match?.id || match?.match_id;
+
+  // ============================================================
+  // LOAD FAVORITE STATE FROM LOCALSTORAGE
+  // ============================================================
+  useEffect(() => {
+    if (!matchId) return;
+
+    const favorites = JSON.parse(localStorage.getItem('football_favorites') || '[]');
+    setIsFavorite(favorites.includes(matchId));
+  }, [matchId]);
+
+  // ============================================================
+  // TOGGLE FAVORITE - Save to localStorage
+  // ============================================================
+  const handleToggleFavorite = () => {
+    if (!matchId) return;
+
+    const favorites = JSON.parse(localStorage.getItem('football_favorites') || '[]');
+
+    let newFavorites;
+    if (favorites.includes(matchId)) {
+      // Remove from favorites
+      newFavorites = favorites.filter(id => id !== matchId);
+      setIsFavorite(false);
+      console.log('⭐ Removed from favorites:', matchId);
+    } else {
+      // Add to favorites
+      newFavorites = [...favorites, matchId];
+      setIsFavorite(true);
+      console.log('⭐ Added to favorites:', matchId);
+    }
+
+    localStorage.setItem('football_favorites', JSON.stringify(newFavorites));
+    console.log('📦 Saved favorites:', newFavorites);
+  };
+
+  // ============================================================
+  // SHARE FUNCTIONALITY
+  // ============================================================
+  const handleShare = async () => {
+    const shareData = {
+      title: `${match?.home_team_name || 'Home'} vs ${match?.away_team_name || 'Away'}`,
+      text: `Tonton pertandingan ${match?.home_team_name} vs ${match?.away_team_name} di NobarMeriah!`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link disalin ke clipboard!');
+      }
+    } catch (err) {
+      console.log('Share error:', err);
+    }
+  };
 
   const formatMatchDate = () => {
     const kickoff = match?.date || match?.kickoff || match?.timestamp;
@@ -111,16 +172,19 @@ export default function MatchHeader({ match, isLive, isFinished }) {
           {/* Action Buttons - Desktop */}
           <div className="absolute top-4 right-4 flex items-center gap-2">
             <button
-              onClick={() => setIsFavorite(!isFavorite)}
+              onClick={handleToggleFavorite}
               className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all font-condensed text-sm ${isFavorite
                 ? 'bg-yellow-50 border-yellow-400 text-yellow-600'
                 : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                 }`}
             >
               <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400' : ''}`} />
-              FAVORIT
+              {isFavorite ? 'DIFAVORITKAN' : 'FAVORIT'}
             </button>
-            <button className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+            <button
+              onClick={handleShare}
+              className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+            >
               <Share2 className="w-5 h-5 text-gray-600" />
             </button>
           </div>
@@ -161,12 +225,15 @@ export default function MatchHeader({ match, isLive, isFinished }) {
         {/* Favorite & Share - Top Right Mobile */}
         <div className="absolute top-2 right-2 flex items-center gap-1">
           <button
-            onClick={() => setIsFavorite(!isFavorite)}
+            onClick={handleToggleFavorite}
             className={`p-1.5 rounded-full transition-all ${isFavorite ? 'text-yellow-500' : 'text-gray-400'}`}
           >
             <Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400' : ''}`} />
           </button>
-          <button className="p-1.5 text-gray-400">
+          <button
+            onClick={handleShare}
+            className="p-1.5 text-gray-400"
+          >
             <Share2 className="w-5 h-5" />
           </button>
         </div>
