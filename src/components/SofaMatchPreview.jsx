@@ -16,6 +16,12 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   const [topPlayers, setTopPlayers] = useState([]);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [fifaRankings, setFifaRankings] = useState([
+    { rank: 1, team: 'Argentina', points: 1867.25, change: 0 },
+    { rank: 2, team: 'France', points: 1859.78, change: 0 },
+    { rank: 3, team: 'Spain', points: 1845.50, change: 1 },
+  ]);
+  const [isLoadingFifa, setIsLoadingFifa] = useState(false);
 
   // ============================================================
   // LIGA DEFINITIONS - Spesifik per negara
@@ -447,6 +453,34 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
     return () => clearInterval(interval);
   }, [isAutoPlaying, displayMatches.length]);
 
+  useEffect(() => {
+    const fetchFifaRankings = async () => {
+      try {
+        setIsLoadingFifa(true);
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+        const response = await fetch(`${API_BASE_URL}/api/fifa-ranking?limit=3`);
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          setFifaRankings(data.data.map(item => ({
+            rank: item.rank,
+            team: item.team,
+            points: item.points,
+            change: item.change || 0
+          })));
+          console.log('✅ FIFA rankings loaded:', data.source);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching FIFA rankings:', error);
+        // Keep fallback data
+      } finally {
+        setIsLoadingFifa(false);
+      }
+    };
+
+    fetchFifaRankings();
+  }, []);
+
   const handlePrev = () => {
     if (isAnimating) return;
     setIsAutoPlaying(false);
@@ -542,12 +576,6 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
   // ============================================================
   // MOCK DATA FOR RANKINGS
   // ============================================================
-  const fifaRankings = [
-    { rank: 1, team: 'Argentina', points: 1867.25, change: 0 },
-    { rank: 2, team: 'France', points: 1859.78, change: 0 },
-    { rank: 3, team: 'Spain', points: 1845.50, change: 1 },
-  ];
-
   const uefaRankings = [
     { rank: 1, team: 'Manchester City', points: 134.000, change: 0 },
     { rank: 2, team: 'Real Madrid', points: 130.000, change: 0 },
@@ -859,20 +887,35 @@ export default function SofaMatchPreview({ matches = [], user, onMatchClick, onC
           <div className="px-4 py-3">
             {activeRankingTab === 'fifa' ? (
               <div className="space-y-2">
-                {fifaRankings.map((item) => (
-                  <div key={item.rank} className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-gray-400 w-4">{item.rank}</span>
-                      <span className="text-sm font-condensed text-gray-800">{item.team}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">{item.points.toFixed(2)}</span>
-                      {item.change > 0 && <span className="text-green-500 text-xs">▲</span>}
-                      {item.change < 0 && <span className="text-red-500 text-xs">▼</span>}
-                      {item.change === 0 && <span className="text-gray-400 text-xs">-</span>}
-                    </div>
+                {isLoadingFifa ? (
+                  // Loading skeleton
+                  <div className="space-y-2 animate-pulse">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                          <div className="w-20 h-4 bg-gray-200 rounded"></div>
+                        </div>
+                        <div className="w-16 h-4 bg-gray-200 rounded"></div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  fifaRankings.map((item) => (
+                    <div key={item.rank} className="flex items-center justify-between py-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-gray-400 w-4">{item.rank}</span>
+                        <span className="text-sm font-condensed text-gray-800">{item.team}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">{item.points.toFixed(2)}</span>
+                        {item.change > 0 && <span className="text-green-500 text-xs">▲</span>}
+                        {item.change < 0 && <span className="text-red-500 text-xs">▼</span>}
+                        {item.change === 0 && <span className="text-gray-400 text-xs">-</span>}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             ) : (
               <div className="space-y-2">
