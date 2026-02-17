@@ -75,6 +75,7 @@ export default function HomePage() {
   const [challengeClosing, setChallengeClosing] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showWcLoading, setShowWcLoading] = useState(false);
 
   // ============================================================
   // AUTH CHECK
@@ -243,6 +244,15 @@ export default function HomePage() {
     fetchMatches(false);
   };
 
+  // World Cup loading screen → redirect
+  useEffect(() => {
+    if (!showWcLoading) return;
+    const t = setTimeout(() => {
+      router.push('/world-cup-simulator');
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [showWcLoading]);
+
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
   };
@@ -397,6 +407,21 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
+
+                {/* World Cup 2026 Simulator Banner */}
+                <div
+                  onClick={() => setShowWcLoading(true)}
+                  className="mt-4 bg-gradient-to-br from-green-700 via-green-600 to-emerald-700 rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  <div className="p-4 flex items-center gap-3">
+                    <span className="text-3xl">🏆</span>
+                    <div className="flex-1">
+                      <p className="font-bold text-white font-condensed text-sm">FIFA World Cup 2026™</p>
+                      <p className="text-[11px] text-green-200 font-condensed">Simulator — Pilih tim & bawa juara!</p>
+                    </div>
+                    <span className="text-white/60 text-xl">›</span>
+                  </div>
+                </div>
               </div>
 
               {/* Right Column - Ads Sidebar */}
@@ -548,7 +573,91 @@ export default function HomePage() {
         .animate-fade-out { animation: fadeOut 0.3s ease-in forwards; }
         .animate-scale-in { animation: scaleIn 0.3s ease-out forwards; }
         .animate-scale-out { animation: scaleOut 0.3s ease-in forwards; }
+
+        .wc-loader {
+          transform: rotateZ(45deg);
+          perspective: 1000px;
+          border-radius: 50%;
+          width: 48px;
+          height: 48px;
+          color: #fff;
+          position: relative;
+        }
+        .wc-loader:before,
+        .wc-loader:after {
+          content: '';
+          display: block;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: inherit;
+          height: inherit;
+          border-radius: 50%;
+          transform: rotateX(70deg);
+          animation: 1s wcSpin linear infinite;
+        }
+        .wc-loader:after {
+          color: #FF3D00;
+          transform: rotateY(70deg);
+          animation-delay: .4s;
+        }
+        @keyframes wcSpin {
+          0%, 100% { box-shadow: .2em 0px 0 0px currentcolor; }
+          12% { box-shadow: .2em .2em 0 0 currentcolor; }
+          25% { box-shadow: 0 .2em 0 0px currentcolor; }
+          37% { box-shadow: -.2em .2em 0 0 currentcolor; }
+          50% { box-shadow: -.2em 0 0 0 currentcolor; }
+          62% { box-shadow: -.2em -.2em 0 0 currentcolor; }
+          75% { box-shadow: 0px -.2em 0 0 currentcolor; }
+          87% { box-shadow: .2em -.2em 0 0 currentcolor; }
+        }
+        @keyframes wcTextFade {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+        @keyframes wcSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
+
+      {/* World Cup Loading Screen */}
+      {showWcLoading && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-[#1a472a] via-[#0d2818] to-[#0a1f14] flex flex-col items-center justify-center"
+          style={{ animation: 'fadeIn 0.4s ease-out' }}>
+          <div style={{ animation: 'wcSlideUp 0.5s ease-out' }} className="text-center">
+            <p className="text-5xl mb-4">🏆</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-white" style={{ fontFamily: "'Oswald', sans-serif" }}>
+              FIFA WORLD CUP
+            </h1>
+            <p className="text-yellow-400 text-lg lg:text-xl font-bold tracking-[0.3em]" style={{ fontFamily: "'Oswald', sans-serif" }}>
+              2026™
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-2">
+              <span className="h-px w-8 bg-green-500/50" />
+              <p className="text-green-400/80 text-xs tracking-widest uppercase" style={{ fontFamily: "'Oswald', sans-serif" }}>
+                Simulator
+              </p>
+              <span className="h-px w-8 bg-green-500/50" />
+            </div>
+          </div>
+
+          <div className="mt-12 flex items-center justify-center" style={{ animation: 'wcSlideUp 0.8s ease-out', width: 48, height: 48 }}>
+            <span className="wc-loader" />
+          </div>
+
+          <p className="mt-12 text-green-300/60 text-xs tracking-wider" style={{ fontFamily: "'Oswald', sans-serif", animation: 'wcTextFade 2s ease-in-out infinite' }}>
+            Memuat turnamen...
+          </p>
+
+          <div className="absolute bottom-8 flex items-center gap-2" style={{ animation: 'wcSlideUp 1s ease-out' }}>
+            <span className="text-[10px] text-green-500/40">⚽</span>
+            <p className="text-[10px] text-green-500/40 tracking-wider" style={{ fontFamily: "'Oswald', sans-serif" }}>
+              NOBARMERIAH.COM
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
