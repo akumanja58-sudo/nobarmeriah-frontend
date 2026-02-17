@@ -255,7 +255,7 @@ function SpinningBallReveal({ drawItem, isPlayerTeam, onComplete }) {
 export default function WorldCupGamePage() {
   const router = useRouter();
   const [allTeams] = useState(parseTeams);
-  // Phase: select | draw | tournament
+  // Phase: select | draw | tournament | knockout
   const [gamePhase, setGamePhase] = useState('select');
   // Select state
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -272,9 +272,9 @@ export default function WorldCupGamePage() {
   const [currentDrawItem, setCurrentDrawItem] = useState(null);
   // Tournament state
   const [playerGroup, setPlayerGroup] = useState(null);
-  const [playerFixtures, setPlayerFixtures] = useState([]); // 3 player matches
-  const [otherFixtures, setOtherFixtures] = useState([]); // 3 other matches in group (auto-sim)
-  const [allGroupFixtures, setAllGroupFixtures] = useState({}); // all groups
+  const [playerFixtures, setPlayerFixtures] = useState([]);
+  const [otherFixtures, setOtherFixtures] = useState([]);
+  const [allGroupFixtures, setAllGroupFixtures] = useState({});
   const [showPreMatch, setShowPreMatch] = useState(false);
   const [preMatchOpponent, setPreMatchOpponent] = useState(null);
   const [preMatchLabel, setPreMatchLabel] = useState('');
@@ -284,9 +284,59 @@ export default function WorldCupGamePage() {
   const [viewingGroup, setViewingGroup] = useState(null);
   // Knockout state
   const [knockoutBracket, setKnockoutBracket] = useState(null);
-  const [knockoutMatch, setKnockoutMatch] = useState(null); // { match, round } for current KO match
+  const [knockoutMatch, setKnockoutMatch] = useState(null);
   const [koPreMatchLabel, setKoPreMatchLabel] = useState('');
-  const knockoutRef = useRef(null); // null = player group, or 'A'-'L' // { home, away, result, phase: 'in'|'out' }
+  const knockoutRef = useRef(null);
+
+  // ============================================================
+  // SAVE / LOAD PROGRESS (localStorage)
+  // ============================================================
+  const SAVE_KEY = 'wc2026_save';
+
+  // Load on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return;
+      const save = JSON.parse(raw);
+      if (save.gamePhase) setGamePhase(save.gamePhase);
+      if (save.selectedTeam) setSelectedTeam(save.selectedTeam);
+      if (save.drawResult) setDrawResult(save.drawResult);
+      if (save.drawComplete) { setDrawComplete(true); setPlayerRevealed(true); setDrawnTeams(save.drawResult?.drawOrder || []); }
+      if (save.playerGroup) setPlayerGroup(save.playerGroup);
+      if (save.playerFixtures) setPlayerFixtures(save.playerFixtures);
+      if (save.otherFixtures) setOtherFixtures(save.otherFixtures);
+      if (save.allGroupFixtures) setAllGroupFixtures(save.allGroupFixtures);
+      if (save.knockoutBracket) setKnockoutBracket(save.knockoutBracket);
+    } catch (e) { console.warn('Failed to load save:', e); }
+  }, []);
+
+  // Auto-save on state changes
+  useEffect(() => {
+    // Don't save transient states or initial select
+    if (gamePhase === 'select' && !selectedTeam) return;
+    // Don't save during active match
+    if (showMatchLive || showPreMatch) return;
+    try {
+      const save = {
+        gamePhase,
+        selectedTeam,
+        drawResult,
+        drawComplete,
+        playerGroup,
+        playerFixtures,
+        otherFixtures,
+        allGroupFixtures,
+        knockoutBracket,
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    } catch (e) { console.warn('Failed to save:', e); }
+  }, [gamePhase, selectedTeam, drawResult, drawComplete, playerGroup, playerFixtures, otherFixtures, allGroupFixtures, knockoutBracket, showMatchLive, showPreMatch]);
+
+  // Clear save on restart
+  const clearSave = () => {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { }
+  };
 
   const filteredTeams = useMemo(() => {
     return allTeams.filter(t => {
@@ -624,7 +674,7 @@ export default function WorldCupGamePage() {
                 <Zap className="w-5 h-5" /> MULAI TURNAMEN
               </button>
               <br />
-              <button onClick={() => { setGamePhase('select'); setDrawResult(null); setDrawnTeams([]); setDrawComplete(false); setPlayerRevealed(false); }} className="text-sm text-gray-500 hover:text-gray-700 font-condensed">← Pilih Tim Lain</button>
+              <button onClick={() => { clearSave(); setGamePhase('select'); setDrawResult(null); setDrawnTeams([]); setDrawComplete(false); setPlayerRevealed(false); }} className="text-sm text-gray-500 hover:text-gray-700 font-condensed">← Pilih Tim Lain</button>
             </div>
           )}
           {/* Group cards */}
@@ -746,6 +796,7 @@ export default function WorldCupGamePage() {
                       <>
                         <p className="text-sm lg:text-base font-condensed text-gray-600 mt-1">😢 Sayang, tim kamu finis di posisi {standings.findIndex(s => s.team.id === selectedTeam?.id) + 1} dan tidak lolos.</p>
                         <button onClick={() => {
+                          clearSave();
                           setGamePhase('select');
                           setSelectedTeam(null);
                           setDrawResult(null);
@@ -958,6 +1009,7 @@ export default function WorldCupGamePage() {
               setShowPreMatch(true);
             }}
             onRestart={() => {
+              clearSave();
               setGamePhase('select');
               setSelectedTeam(null);
               setDrawResult(null);
