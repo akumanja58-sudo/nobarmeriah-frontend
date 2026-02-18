@@ -272,11 +272,36 @@ const LIVE_STYLES = `
   @keyframes mlScorePop{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
   @keyframes mlFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   @keyframes mlWhistle{0%{transform:scale(0) rotate(-20deg);opacity:0}50%{transform:scale(1.2) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
-  @keyframes mlGoalOverlay{0%{opacity:0;transform:scale(0.3)}15%{opacity:1;transform:scale(1.1)}25%{transform:scale(1)}75%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0.8)}}
-  @keyframes mlGoalText{0%{opacity:0;transform:translateY(30px) scale(0.5)}20%{opacity:1;transform:translateY(0) scale(1.2)}35%{transform:scale(1)}100%{opacity:1;transform:scale(1)}}
-  @keyframes mlConfetti{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100px) rotate(720deg)}}
-  @keyframes mlShake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-3px)}20%,40%,60%,80%{transform:translateX(3px)}}
+
+  /* === PL-STYLE GOAL CELEBRATION === */
+  @keyframes goalOverlayIn{0%{opacity:0}8%{opacity:1}85%{opacity:1}100%{opacity:0}}
+  @keyframes goalShake{0%,100%{transform:translate(0)}5%{transform:translate(-8px,4px)}10%{transform:translate(6px,-3px)}15%{transform:translate(-5px,5px)}20%{transform:translate(4px,-2px)}25%{transform:translate(-3px,1px)}30%{transform:translate(0)}}
+  @keyframes goalFlashBars{0%{opacity:0;transform:scaleX(0)}8%{opacity:1;transform:scaleX(1)}20%{opacity:1}35%{opacity:0}}
+  @keyframes goalTextSlam{0%{opacity:0;transform:translateX(-120px) scale(1.8)}6%{opacity:1;transform:translateX(10px) scale(1.05)}10%{transform:translateX(0) scale(1)}80%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(60px)}}
+  @keyframes goalPlayerSlide{0%{opacity:0;transform:translateX(-200px)}10%{opacity:1;transform:translateX(8px)}14%{transform:translateX(0)}75%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(40px)}}
+  @keyframes goalScoreZoom{0%{opacity:0;transform:scale(0)}8%{opacity:1;transform:scale(1.6)}14%{transform:scale(0.95)}18%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(0.8)}}
+  @keyframes goalStripeDiag{0%{transform:translateX(-100%) skewX(-20deg)}30%{transform:translateX(0) skewX(-20deg)}70%{transform:translateX(0) skewX(-20deg)}100%{transform:translateX(100%) skewX(-20deg)}}
+  @keyframes goalPulseRing{0%{transform:scale(0);opacity:0.8;border-width:3px}100%{transform:scale(4);opacity:0;border-width:1px}}
+  @keyframes goalConfettiDrop{0%{opacity:1;transform:translateY(-20px) rotate(0deg)}100%{opacity:0;transform:translateY(calc(100vh)) rotate(var(--rot,360deg))}}
+  @keyframes goalBarLeft{0%{transform:scaleX(0);transform-origin:left}8%{transform:scaleX(1)}80%{transform:scaleX(1);opacity:1}100%{opacity:0}}
+  @keyframes goalBarRight{0%{transform:scaleX(0);transform-origin:right}12%{transform:scaleX(1)}80%{transform:scaleX(1);opacity:1}100%{opacity:0}}
+  @keyframes goalTeamBadge{0%{opacity:0;transform:scale(0) rotate(-15deg)}12%{opacity:1;transform:scale(1.2) rotate(3deg)}18%{transform:scale(1) rotate(0)}80%{opacity:1}100%{opacity:0}}
+
+  .goal-confetti-piece{position:absolute;top:-10px;width:8px;height:8px;animation:goalConfettiDrop var(--dur,2.5s) ease-in forwards;animation-delay:var(--delay,0s)}
 `;
+
+// Generate confetti pieces
+const CONFETTI_COLORS = ['#22c55e', '#eab308', '#ef4444', '#3b82f6', '#ffffff', '#f97316', '#a855f7'];
+const CONFETTI_PIECES = Array.from({ length: 30 }, (_, i) => ({
+  id: i,
+  left: `${Math.random() * 100}%`,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  size: 5 + Math.random() * 8,
+  dur: `${2 + Math.random() * 2}s`,
+  delay: `${Math.random() * 0.8}s`,
+  rot: `${360 + Math.random() * 720}deg`,
+  shape: Math.random() > 0.5 ? 'circle' : 'rect',
+}));
 
 // ============================================================
 // MATCH LIVE COMPONENT
@@ -336,7 +361,7 @@ export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onC
             setGoalFlash(null);
             setGoalCelebration(null);
             setIsPaused(false);
-          }, 2800);
+          }, 3500);
         }
       });
     }
@@ -441,7 +466,7 @@ export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onC
                 clearInterval(timerRef.current);
                 setGoalCelebration({ side: e.side, player: e.player, team: e.side === 'home' ? homeTeam.name : awayTeam.name, homeGoals: e.homeGoals, awayGoals: e.awayGoals });
                 setGoalFlash(e.side);
-                setTimeout(() => { setGoalFlash(null); setGoalCelebration(null); setIsPaused(false); }, 2800);
+                setTimeout(() => { setGoalFlash(null); setGoalCelebration(null); setIsPaused(false); }, 3500);
               }
             });
           }
@@ -490,7 +515,7 @@ export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onC
                 clearInterval(timerRef.current);
                 setGoalCelebration({ side: e.side, player: e.player, team: e.side === 'home' ? homeTeam.name : awayTeam.name, homeGoals: e.homeGoals, awayGoals: e.awayGoals });
                 setGoalFlash(e.side);
-                setTimeout(() => { setGoalFlash(null); setGoalCelebration(null); setIsPaused(false); }, 2800);
+                setTimeout(() => { setGoalFlash(null); setGoalCelebration(null); setIsPaused(false); }, 3500);
               }
             });
           }
@@ -789,28 +814,80 @@ export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onC
         </>
       )}
 
-      {/* GOAL CELEBRATION OVERLAY */}
-      {goalCelebration && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none"
-          style={{ animation: 'mlGoalOverlay 2.8s ease-out forwards' }}>
-          <div className="bg-black/70 absolute inset-0" />
-          <div className="relative text-center z-10">
-            <div className="text-6xl lg:text-8xl" style={{ animation: 'mlGoalText 0.5s ease-out' }}>⚽</div>
-            <p className="text-4xl lg:text-6xl font-bold font-condensed text-white mt-2" style={{ animation: 'mlGoalText 0.6s ease-out' }}>
-              GOOOL!
-            </p>
-            <p className="text-lg lg:text-xl font-condensed text-green-400 mt-2" style={{ animation: 'mlGoalText 0.8s ease-out' }}>
-              {goalCelebration.player}
-            </p>
-            <p className="text-sm font-condensed text-gray-400 mt-1" style={{ animation: 'mlGoalText 1s ease-out' }}>
-              {goalCelebration.team}
-            </p>
-            <div className="mt-3 inline-flex items-center gap-2 bg-white/20 px-6 py-2 rounded-full" style={{ animation: 'mlGoalText 1.2s ease-out' }}>
-              <span className="text-2xl lg:text-3xl font-bold font-condensed text-white">{goalCelebration.homeGoals} - {goalCelebration.awayGoals}</span>
+      {/* PL-STYLE GOAL CELEBRATION OVERLAY */}
+      {goalCelebration && (() => {
+        const isMyGoal = (goalCelebration.side === 'home' && isHome) || (goalCelebration.side === 'away' && !isHome);
+        const accentColor = isMyGoal ? '#22c55e' : '#ef4444';
+        const accentBg = isMyGoal ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.1)';
+        return (
+          <div className="fixed inset-0 z-[60] pointer-events-none overflow-hidden"
+            style={{ animation: 'goalOverlayIn 3.2s ease-out forwards' }}>
+
+            {/* Screen shake wrapper */}
+            <div style={{ animation: 'goalShake 0.6s ease-out' }} className="absolute inset-0" />
+
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/75" />
+
+            {/* Diagonal accent stripes */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute top-0 left-0 w-[120%] h-full opacity-20"
+                style={{ background: `linear-gradient(135deg, transparent 40%, ${accentColor} 40%, ${accentColor} 45%, transparent 45%)`, animation: 'goalStripeDiag 3.2s ease-out forwards' }} />
+              <div className="absolute top-0 left-0 w-[120%] h-full opacity-10"
+                style={{ background: `linear-gradient(135deg, transparent 55%, ${accentColor} 55%, ${accentColor} 58%, transparent 58%)`, animation: 'goalStripeDiag 3.2s ease-out 0.1s forwards' }} />
             </div>
+
+            {/* Confetti (only for player's team goal) */}
+            {isMyGoal && (
+              <div className="absolute inset-0 overflow-hidden">
+                {CONFETTI_PIECES.map(c => (
+                  <div key={c.id} className="goal-confetti-piece"
+                    style={{ left: c.left, '--dur': c.dur, '--delay': c.delay, '--rot': c.rot, width: c.size, height: c.size, backgroundColor: c.color, borderRadius: c.shape === 'circle' ? '50%' : '2px', transform: `rotate(${Math.random() * 360}deg)` }} />
+                ))}
+              </div>
+            )}
+
+            {/* Center content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+
+              {/* Pulse ring behind */}
+              <div className="absolute" style={{ width: 120, height: 120 }}>
+                <div className="absolute inset-0 rounded-full" style={{ border: `3px solid ${accentColor}`, animation: 'goalPulseRing 1s ease-out forwards' }} />
+                <div className="absolute inset-0 rounded-full" style={{ border: `3px solid ${accentColor}`, animation: 'goalPulseRing 1s ease-out 0.3s forwards' }} />
+              </div>
+
+              {/* GOOOL! text */}
+              <div style={{ animation: 'goalTextSlam 3.2s ease-out forwards' }}>
+                <h1 className="text-5xl lg:text-7xl font-black font-condensed tracking-tight" style={{ color: accentColor, textShadow: `0 0 40px ${accentColor}40, 0 4px 8px rgba(0,0,0,0.5)` }}>
+                  {isMyGoal ? 'GOOOL!' : 'GOL...'}
+                </h1>
+              </div>
+
+              {/* Accent bar + player name */}
+              <div className="mt-3 flex items-center gap-3" style={{ animation: 'goalPlayerSlide 3.2s ease-out forwards' }}>
+                <div className="w-1 h-10 rounded-full" style={{ backgroundColor: accentColor }} />
+                <div>
+                  <p className="text-xl lg:text-2xl font-bold font-condensed text-white leading-tight">{goalCelebration.player}</p>
+                  <p className="text-xs lg:text-sm font-condensed text-gray-400">{goalCelebration.team}</p>
+                </div>
+              </div>
+
+              {/* Score */}
+              <div className="mt-5" style={{ animation: 'goalScoreZoom 3.2s ease-out forwards' }}>
+                <div className="flex items-center gap-4 bg-black/50 backdrop-blur-sm px-8 py-3 rounded-2xl border" style={{ borderColor: `${accentColor}40` }}>
+                  <span className="text-3xl lg:text-5xl font-black font-condensed text-white">{goalCelebration.homeGoals}</span>
+                  <span className="text-lg font-condensed text-gray-500">-</span>
+                  <span className="text-3xl lg:text-5xl font-black font-condensed text-white">{goalCelebration.awayGoals}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Top & bottom accent bars */}
+            <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: accentColor, animation: 'goalBarLeft 3.2s ease-out forwards' }} />
+            <div className="absolute bottom-0 left-0 right-0 h-1.5" style={{ backgroundColor: accentColor, animation: 'goalBarRight 3.2s ease-out forwards' }} />
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
