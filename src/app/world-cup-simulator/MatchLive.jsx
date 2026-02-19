@@ -304,8 +304,8 @@ const CONFETTI_PIECES = Array.from({ length: 35 }, (_, i) => ({
 // ============================================================
 // MATCH LIVE COMPONENT
 // ============================================================
-export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onComplete, isKnockout = false }) {
-  const [phase, setPhase] = useState('intro'); // intro | firsthalf | halftime | secondhalf | fulltime | extratime1 | ethalftime | extratime2 | etfulltime | penalties | penaltydone
+export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onComplete, isKnockout = false, skipIntro = false }) {
+  const [phase, setPhase] = useState(skipIntro ? 'firsthalf' : 'intro'); // intro | firsthalf | halftime | secondhalf | fulltime | extratime1 | ethalftime | extratime2 | etfulltime | penalties | penaltydone
   const [currentMin, setCurrentMin] = useState(0);
   const [displayedEvents, setDisplayedEvents] = useState([]);
   const [homeGoals, setHomeGoals] = useState(0);
@@ -328,6 +328,7 @@ export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onC
 
   // Intro → first half
   useEffect(() => {
+    if (skipIntro) return; // already set to firsthalf
     const t = setTimeout(() => setPhase('firsthalf'), 2500);
     return () => clearTimeout(t);
   }, []);
@@ -891,13 +892,6 @@ export default function MatchLive({ homeTeam, awayTeam, matchConfig, isHome, onC
 
                 {/* Bottom accent line */}
                 <div className="h-0.5 mt-px rounded-b" style={{ background: accent, opacity: 0.5 }} />
-              </div>
-            </div>
-
-            {/* Minute badge floating */}
-            <div className="absolute bottom-[20%] left-1/2 -translate-x-1/2" style={{ animation: 'goalPlayerFade 3.5s ease-out forwards' }}>
-              <div className="px-4 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
-                <span className="text-xs font-condensed text-white/70 font-bold" style={{ animation: 'goalMinPulse 1s infinite' }}>⚽ {currentMin}'</span>
               </div>
             </div>
           </div>

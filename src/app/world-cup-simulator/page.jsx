@@ -1105,6 +1105,7 @@ export default function WorldCupGamePage() {
             isHome={match.home.id === selectedTeam?.id}
             onComplete={handleMatchComplete}
             isKnockout={!!knockoutMatch}
+            skipIntro={true}
           />
         );
       })()}

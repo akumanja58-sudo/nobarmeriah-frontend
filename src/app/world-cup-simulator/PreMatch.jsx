@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { X, ChevronRight } from 'lucide-react';
 
 const flagUrl = (code) => `https://flagcdn.com/w40/${code}.png`;
@@ -118,6 +118,66 @@ export default function PreMatchModal({ myTeam, opponent, matchLabel, onClose, o
   const [captain, setCaptain] = useState(null);
   const [startingXI, setStartingXI] = useState([]);
   const [benchSwapFrom, setBenchSwapFrom] = useState(null);
+  const [kickoffAnim, setKickoffAnim] = useState(false);
+  const [showOpponentIntel, setShowOpponentIntel] = useState(false);
+
+  // Generate opponent setup (deterministic based on opponent stars)
+  const opponentIntel = useMemo(() => {
+    const seed = opponent.name.length + opponent.stars * 7;
+    // Pick formation based on stars
+    const oppFormations = {
+      5: ['4-3-3', '4-2-3-1'],
+      4: ['4-3-3', '4-4-2', '4-2-3-1'],
+      3: ['4-4-2', '4-2-3-1', '5-3-2'],
+      2: ['4-4-2', '5-3-2', '4-1-4-1'],
+      1: ['5-3-2', '4-4-2'],
+    };
+    const formOptions = oppFormations[opponent.stars] || oppFormations[3];
+    const oppFormation = FORMATIONS.find(f => f.id === formOptions[seed % formOptions.length]) || FORMATIONS[0];
+
+    // Pick tactic based on stars
+    const oppTactic = opponent.stars >= 4
+      ? TACTICS[seed % 2 === 0 ? 0 : 1] // attacking or balanced
+      : opponent.stars >= 3
+        ? TACTICS[1] // balanced
+        : TACTICS[seed % 2 === 0 ? 1 : 2]; // balanced or defensive
+
+    // Pick starting XI
+    const fp = FIELD_POSITIONS[oppFormation.id] || FIELD_POSITIONS['4-3-3'];
+    const available = [...(opponent.players || [])];
+    const nearby = { GK: ['GK'], DEF: ['DEF', 'MID'], MID: ['MID', 'DEF', 'FWD'], FWD: ['FWD', 'MID'] };
+    const oppXI = [];
+    fp.forEach(slot => {
+      let best = null;
+      for (const tryPos of (nearby[slot.pos] || [slot.pos])) {
+        best = available.find(p => p.pos === tryPos);
+        if (best) break;
+      }
+      if (!best && available.length > 0) best = available[0];
+      if (best) { oppXI.push(best); available.splice(available.indexOf(best), 1); }
+    });
+
+    // Pick captain
+    const oppCaptain = oppXI.find(p => p.pos === 'FWD') || oppXI.find(p => p.pos === 'MID') || oppXI[0];
+
+    // Tactical hint
+    const hints = {
+      attacking: ['Lawan akan menekan tinggi! Manfaatkan ruang belakang mereka.', 'Mereka agresif — counter-attack bisa jadi kunci!', 'Hati-hati pressing mereka di awal pertandingan!'],
+      balanced: ['Lawan bermain seimbang. Temukan celah di lini tengah!', 'Mereka cukup solid — butuh kreativitas untuk menerobos.', 'Pertandingan ketat, siapa lebih sabar akan menang.'],
+      defensive: ['Lawan parkir bus! Serang dari sayap dan manfaatkan crossing.', 'Mereka akan mengandalkan counter — jangan terlalu terbuka.', 'Bersabar! Mereka akan main bertahan dalam.'],
+    };
+    const hintList = hints[oppTactic.id] || hints.balanced;
+    const hint = hintList[seed % hintList.length];
+
+    return { formation: oppFormation, tactic: oppTactic, startingXI: oppXI.slice(0, 11), captain: oppCaptain, hint };
+  }, [opponent]);
+
+  const handleKickOff = () => {
+    setKickoffAnim(true);
+    setTimeout(() => {
+      onStartMatch({ formation, tactic, captain, startingXI });
+    }, 4500);
+  };
 
   const autoPickLineup = (f) => {
     const fp = FIELD_POSITIONS[f.id] || FIELD_POSITIONS['4-3-3'];
@@ -432,8 +492,63 @@ export default function PreMatchModal({ myTeam, opponent, matchLabel, onClose, o
                 <div className="lg:hidden">
                   <FieldPreview fieldPositions={fieldPositions} startingXI={startingXI} captain={captain} size="small" />
                 </div>
+
+                {/* Scouting Report - Opponent Intel */}
+                <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl lg:rounded-2xl overflow-hidden">
+                  <button onClick={() => setShowOpponentIntel(!showOpponentIntel)}
+                    className="w-full px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🕵️</span>
+                      <span className="text-sm font-bold font-condensed text-white">Scouting Report — {opponent.name}</span>
+                    </div>
+                    <span className={`text-white/50 text-sm transition-transform ${showOpponentIntel ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+
+                  {showOpponentIntel && (
+                    <div className="px-4 pb-4 space-y-3">
+                      {/* Opponent setup cards */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-white/10 rounded-lg p-2.5 text-center">
+                          <p className="text-[9px] text-white/40 font-condensed uppercase">Formasi</p>
+                          <p className="text-base font-bold font-condensed text-white">{opponentIntel.formation.label}</p>
+                        </div>
+                        <div className="bg-white/10 rounded-lg p-2.5 text-center">
+                          <p className="text-[9px] text-white/40 font-condensed uppercase">Taktik</p>
+                          <p className="text-base">{opponentIntel.tactic.icon}</p>
+                          <p className="text-[10px] font-bold font-condensed text-white">{opponentIntel.tactic.label}</p>
+                        </div>
+                        <div className="bg-white/10 rounded-lg p-2.5 text-center">
+                          <p className="text-[9px] text-white/40 font-condensed uppercase">Kapten</p>
+                          <p className="text-xs font-bold font-condensed text-white truncate">{opponentIntel.captain?.name || '-'}</p>
+                          <p className="text-[9px] text-white/40 font-condensed">{opponentIntel.captain?.pos}</p>
+                        </div>
+                      </div>
+
+                      {/* Key players */}
+                      <div>
+                        <p className="text-[10px] text-white/40 font-condensed uppercase mb-1.5">Pemain Kunci</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {opponentIntel.startingXI.filter(p => p.pos === 'FWD' || p.pos === 'MID').slice(0, 4).map((p, i) => (
+                            <div key={i} className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-full">
+                              <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${POS_BADGE[p.pos]}`}>{p.pos}</span>
+                              <span className="text-[11px] font-condensed text-white">{p.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Tactical hint */}
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                        <div className="flex gap-2">
+                          <span className="text-sm">💡</span>
+                          <p className="text-xs font-condensed text-yellow-200/90 leading-relaxed">{opponentIntel.hint}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {/* Kick Off */}
-                <button onClick={() => onStartMatch({ formation, tactic, captain, startingXI })} disabled={!isReady}
+                <button onClick={handleKickOff} disabled={!isReady || kickoffAnim}
                   className="w-full py-4 lg:py-5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold font-condensed rounded-xl lg:rounded-2xl text-lg lg:text-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-all">
                   ⚽ KICK OFF!
                 </button>
@@ -443,6 +558,101 @@ export default function PreMatchModal({ myTeam, opponent, matchLabel, onClose, o
           )}
         </div>
       </div>
+
+      {/* KICK OFF ANIMATION OVERLAY */}
+      {kickoffAnim && (
+        <div className="fixed inset-0 z-[60] overflow-hidden">
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            @keyframes koFadeIn{0%{opacity:0}100%{opacity:1}}
+            @keyframes koFlagLeft{0%{transform:translateX(-100%) scale(0.7);opacity:0}25%{transform:translateX(0) scale(1);opacity:1}75%{transform:translateX(0) scale(1);opacity:1}100%{transform:translateX(-30%) scale(0.9);opacity:0}}
+            @keyframes koFlagRight{0%{transform:translateX(100%) scale(0.7);opacity:0}25%{transform:translateX(0) scale(1);opacity:1}75%{transform:translateX(0) scale(1);opacity:1}100%{transform:translateX(30%) scale(0.9);opacity:0}}
+            @keyframes koVs{0%{transform:scale(0) rotate(-20deg);opacity:0}20%{transform:scale(1.3) rotate(5deg);opacity:1}30%{transform:scale(1) rotate(0)}70%{transform:scale(1);opacity:1}100%{transform:scale(0.5);opacity:0}}
+            @keyframes koText{0%{transform:translateY(60px) scale(0.3);opacity:0}30%{transform:translateY(0) scale(1.15);opacity:1}40%{transform:scale(1)}75%{transform:scale(1);opacity:1}100%{transform:translateY(-20px);opacity:0}}
+            @keyframes koFlash{0%{opacity:0}15%{opacity:0.6}30%{opacity:0}45%{opacity:0.3}60%{opacity:0}}
+            @keyframes koPulse{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.5);opacity:0}}
+            @keyframes koDiag{0%{transform:translateX(-100%) skewX(-15deg)}40%{transform:translateX(0) skewX(-15deg)}70%{transform:translateX(0) skewX(-15deg)}100%{transform:translateX(100%) skewX(-15deg)}}
+            @keyframes koStadium{0%{opacity:0}20%{opacity:0.08}80%{opacity:0.08}100%{opacity:0}}
+            @keyframes koLineUp{0%{transform:scaleX(0)}25%{transform:scaleX(1)}80%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+            @keyframes koNames{0%{opacity:0;transform:translateY(10px)}30%{opacity:1;transform:translateY(0)}75%{opacity:1}100%{opacity:0}}
+            @keyframes koMotivation{0%{opacity:0}40%{opacity:0}50%{opacity:1}80%{opacity:1}100%{opacity:0}}
+          `}} />
+
+          {/* Dark bg with fade in */}
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-950 via-green-950 to-gray-950"
+            style={{ animation: 'koFadeIn 0.4s ease-out' }} />
+
+          {/* Stadium pattern bg */}
+          <div className="absolute inset-0"
+            style={{ backgroundImage: 'radial-gradient(circle at 50% 40%, rgba(34,197,94,0.12) 0%, transparent 60%)', animation: 'koStadium 4.5s ease-out forwards' }} />
+
+          {/* Diagonal accent stripe */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute top-0 left-0 w-[120%] h-full opacity-10"
+              style={{ background: 'linear-gradient(135deg, transparent 42%, rgba(34,197,94,0.4) 42%, rgba(34,197,94,0.4) 45%, transparent 45%)', animation: 'koDiag 4.5s ease-out forwards' }} />
+          </div>
+
+          {/* Quick white flash */}
+          <div className="absolute inset-0 bg-white pointer-events-none" style={{ animation: 'koFlash 4.5s ease-out forwards' }} />
+
+          {/* Center content */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+
+            {/* Flags row */}
+            <div className="flex items-center gap-6 lg:gap-12 mb-4">
+              {/* Home flag */}
+              <div className="text-center" style={{ animation: 'koFlagLeft 4.5s ease-out forwards' }}>
+                <img src={flagUrlLg(myTeam.flagCode)} alt="" className="w-16 h-12 lg:w-24 lg:h-18 rounded-lg shadow-2xl object-cover" style={{ border: '3px solid rgba(255,255,255,0.2)' }} />
+                <p className="text-white font-bold font-condensed text-sm lg:text-lg mt-2" style={{ animation: 'koNames 4.5s ease-out forwards' }}>{myTeam.name}</p>
+                <p className="text-yellow-400 text-xs lg:text-sm font-condensed" style={{ animation: 'koNames 4.5s ease-out 0.1s forwards' }}>{'★'.repeat(myTeam.stars)}</p>
+              </div>
+
+              {/* VS */}
+              <div style={{ animation: 'koVs 4.5s ease-out forwards' }}>
+                <div className="w-14 h-14 lg:w-20 lg:h-20 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                  <span className="text-2xl lg:text-3xl font-black font-condensed text-white/80">VS</span>
+                </div>
+              </div>
+
+              {/* Away flag */}
+              <div className="text-center" style={{ animation: 'koFlagRight 4.5s ease-out forwards' }}>
+                <img src={flagUrlLg(opponent.flagCode)} alt="" className="w-16 h-12 lg:w-24 lg:h-18 rounded-lg shadow-2xl object-cover" style={{ border: '3px solid rgba(255,255,255,0.2)' }} />
+                <p className="text-white font-bold font-condensed text-sm lg:text-lg mt-2" style={{ animation: 'koNames 4.5s ease-out forwards' }}>{opponent.name}</p>
+                <p className="text-yellow-400 text-xs lg:text-sm font-condensed" style={{ animation: 'koNames 4.5s ease-out 0.1s forwards' }}>{'★'.repeat(opponent.stars)}</p>
+              </div>
+            </div>
+
+            {/* Center accent line */}
+            <div className="w-48 lg:w-72 h-0.5 bg-gradient-to-r from-transparent via-green-500 to-transparent my-4"
+              style={{ animation: 'koLineUp 4.5s ease-out forwards', transformOrigin: 'center' }} />
+
+            {/* KICK OFF text */}
+            <div style={{ animation: 'koText 4.5s ease-out forwards' }}>
+              <h1 className="text-4xl lg:text-6xl font-black font-condensed text-white tracking-wider"
+                style={{ textShadow: '0 0 40px rgba(34,197,94,0.4), 0 4px 12px rgba(0,0,0,0.5)' }}>
+                KICK OFF!
+              </h1>
+            </div>
+
+            {/* Motivational text */}
+            <p className="mt-3 text-green-400/70 text-sm lg:text-base font-condensed italic"
+              style={{ animation: 'koMotivation 4.5s ease-out forwards' }}>
+              {['Waktunya buktikan! 🔥', 'Saatnya mengukir sejarah! ⚡', 'Tunjukkan kekuatanmu! 💪', 'Bawa pulang kemenangan! 🏆', 'Ini waktumu bersinar! ⭐'][Math.floor(Math.random() * 5)]}
+            </p>
+
+            {/* Pulse rings behind */}
+            <div className="absolute" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+              <div className="w-32 h-32 lg:w-48 lg:h-48 rounded-full border border-green-500/30" style={{ animation: 'koPulse 1.5s ease-out infinite' }} />
+              <div className="absolute inset-0 w-32 h-32 lg:w-48 lg:h-48 rounded-full border border-green-500/20" style={{ animation: 'koPulse 1.5s ease-out 0.5s infinite' }} />
+            </div>
+          </div>
+
+          {/* Match label at bottom */}
+          <div className="absolute bottom-8 lg:bottom-12 left-0 right-0 text-center" style={{ animation: 'koNames 4.5s ease-out forwards' }}>
+            <p className="text-green-500/40 text-xs lg:text-sm font-condensed uppercase tracking-widest">{matchLabel}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
