@@ -233,9 +233,9 @@ function generatePenaltyShootout(homeTeam, awayTeam) {
 
   const kicks = [];
   let hScore = 0, aScore = 0;
-  const maxRounds = 10; // 5 regular + 5 sudden death max
 
-  for (let round = 0; round < maxRounds; round++) {
+  // Phase 1: Regular 5 rounds
+  for (let round = 0; round < 5; round++) {
     const homeKicker = homePlayers[round % homePlayers.length];
     const awayKicker = awayPlayers[round % awayPlayers.length];
     const homeScored = Math.random() < homeStr;
@@ -244,19 +244,49 @@ function generatePenaltyShootout(homeTeam, awayTeam) {
     if (homeScored) hScore++;
     kicks.push({ round: round + 1, side: 'home', player: homeKicker?.name || `Penendang ${round + 1}`, scored: homeScored, homeTotal: hScore, awayTotal: aScore });
 
+    // Check if away can't catch up even if they score remaining
+    const awayRemaining = 4 - round; // rounds left for away in this kick + future rounds
+    if (hScore > aScore + awayRemaining + (homeScored ? 0 : 0)) {
+      // Away still kicks this round
+      if (awayScored) aScore++;
+      kicks.push({ round: round + 1, side: 'away', player: awayKicker?.name || `Penendang ${round + 1}`, scored: awayScored, homeTotal: hScore, awayTotal: aScore });
+      if (hScore > aScore + (4 - round - 1)) break; // mathematically decided
+      continue;
+    }
+
     if (awayScored) aScore++;
     kicks.push({ round: round + 1, side: 'away', player: awayKicker?.name || `Penendang ${round + 1}`, scored: awayScored, homeTotal: hScore, awayTotal: aScore });
 
-    // Check if decided after 5 rounds
-    if (round >= 4) {
-      if (hScore !== aScore) break;
-    }
-    // Check if mathematically impossible to catch up (before 5)
+    // Check if mathematically impossible after both kicked
+    const homeRemaining = 4 - round;
     if (round < 4) {
-      const remaining = 4 - round;
-      if (hScore > aScore + remaining || aScore > hScore + remaining) break;
+      if (hScore > aScore + homeRemaining) break;
+      if (aScore > hScore + homeRemaining) break;
     }
   }
+
+  // Phase 2: Sudden death (if still tied after 5)
+  if (hScore === aScore) {
+    for (let sd = 0; sd < 15; sd++) { // max 15 sudden death rounds (safety)
+      const round = 5 + sd;
+      const homeKicker = homePlayers[round % homePlayers.length];
+      const awayKicker = awayPlayers[round % awayPlayers.length];
+      const homeScored = Math.random() < homeStr;
+      const awayScored = Math.random() < awayStr;
+
+      if (homeScored) hScore++;
+      kicks.push({ round: round + 1, side: 'home', player: homeKicker?.name || `Penendang ${round + 1}`, scored: homeScored, homeTotal: hScore, awayTotal: aScore });
+
+      if (awayScored) aScore++;
+      kicks.push({ round: round + 1, side: 'away', player: awayKicker?.name || `Penendang ${round + 1}`, scored: awayScored, homeTotal: hScore, awayTotal: aScore });
+
+      // Sudden death: if one scored and other missed, it's decided
+      if (hScore !== aScore) break;
+    }
+  }
+
+  // Final safety: if somehow still tied (extremely unlikely), give home win
+  if (hScore === aScore) hScore++;
 
   return { kicks, penScore: { home: hScore, away: aScore } };
 }
