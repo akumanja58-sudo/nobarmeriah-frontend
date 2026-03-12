@@ -132,7 +132,7 @@ export default function SofaFooter() {
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                     <img
-                      src="/images/NobarMeriahLogoIcon.png"
+                      src="/images/ScoreMeriahLogoIcon.png"
                       alt="NobarMeriah"
                       className="w-6 h-6 object-contain"
                       onError={(e) => { e.target.innerHTML = '⚽'; }}
@@ -289,7 +289,7 @@ export default function SofaFooter() {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                 <img
-                  src="/images/NobarMeriahLogoIcon.png"
+                  src="/images/ScoreMeriahLogoIcon.png"
                   alt="NobarMeriah"
                   className="w-6 h-6 object-contain"
                   onError={(e) => { e.target.style.display = 'none'; }}

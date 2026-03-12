@@ -22,7 +22,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id">
       <head>
-        <link rel="icon" href="/images/NobarMeriahLogoIcon.png" />
+        <link rel="icon" href="/images/ScoreMeriahLogoIcon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={inter.className}>
