@@ -265,7 +265,7 @@ export default function SofaHeader({
               >
                 <img
                   src="/images/ScoreMeriahLogoText.png"
-                  alt="NobarMeriah"
+                  alt="ScoreMeriah"
                   className="h-10 object-contain"
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
@@ -508,8 +508,8 @@ export default function SofaHeader({
             onClick={() => router.push('/')}
           >
             <img
-              src="/images/NobarMeriahLogoText.png"
-              alt="NobarMeriah"
+              src="/images/ScoreMeriahLogoText.png"
+              alt="ScoreMeriah"
               className="h-8 object-contain"
               onError={(e) => { e.target.style.display = 'none'; }}
             />

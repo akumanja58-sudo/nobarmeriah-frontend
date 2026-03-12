@@ -430,7 +430,7 @@ export default function HomePage() {
                   <div className="bg-gray-100 px-3 py-1 text-xs text-gray-500 font-condensed">Iklan</div>
                   <div className="aspect-[300/250] bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center">
                     <div className="text-center text-white p-4">
-                      <p className="text-2xl font-bold font-condensed mb-2">NobarMeriah</p>
+                      <p className="text-2xl font-bold font-condensed mb-2">ScoreMeriah</p>
                       <p className="text-sm font-condensed">Nonton Bola Gratis!</p>
                       <button className="mt-3 px-4 py-2 bg-white text-green-600 rounded-lg text-sm font-bold font-condensed hover:bg-green-50 transition-colors">
                         STREAMING
@@ -653,7 +653,7 @@ export default function HomePage() {
           <div className="absolute bottom-8 flex items-center gap-2" style={{ animation: 'wcSlideUp 1s ease-out' }}>
             <span className="text-[10px] text-green-500/40">⚽</span>
             <p className="text-[10px] text-green-500/40 tracking-wider" style={{ fontFamily: "'Oswald', sans-serif" }}>
-              NOBARMERIAH.COM
+              SCOREMERIAH.COM
             </p>
           </div>
         </div>

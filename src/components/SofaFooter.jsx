@@ -79,7 +79,7 @@ export default function SofaFooter() {
     'Impresum',
   ];
 
-  const navLinks = ['IKLAN', 'KONTAK', 'TORNEO BY NOBARMERIAH', 'NOBARMERIAH NEWS'];
+  const navLinks = ['IKLAN', 'KONTAK', 'TORNEO BY SCOREMERIAH', 'SCOREMERIAH NEWS'];
 
   return (
     <>
@@ -93,7 +93,7 @@ export default function SofaFooter() {
           <div className="mb-8">
             <h3 className="text-lg font-bold font-condensed mb-4">Tentang</h3>
             <p className="text-green-100 text-sm leading-relaxed max-w-4xl">
-              Skor Live Sepak Bola di NobarMeriah Livescore menghadirkan liputan Live dari lebih dari 500 liga, piala,
+              Skor Live Sepak Bola di ScoreMeriah Livescore menghadirkan liputan Live dari lebih dari 500 liga, piala,
               dan turnamen di seluruh dunia dengan update real-time untuk hasil, statistik, klasemen, cuplikan
               video, dan jadwal. Semua laga Live dari tiap liga Sepak Bola punya update cepat dan akurat untuk
               menit, skor, paruh waktu dan hasil akhir, pencetak gol dan assist, kartu, pergantian pemain, serta
@@ -132,13 +132,13 @@ export default function SofaFooter() {
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                     <img
-                      src="/images/ScoreMeriahLogoIcon.png"
-                      alt="NobarMeriah"
+                      src="/images/ScoreMeriahLogo-Icon.png"
+                      alt="ScoreMeriah"
                       className="w-6 h-6 object-contain"
                       onError={(e) => { e.target.innerHTML = '⚽'; }}
                     />
                   </div>
-                  <span className="text-lg font-bold font-condensed">NobarMeriah</span>
+                  <span className="text-lg font-bold font-condensed">ScoreMeriah</span>
                 </div>
 
                 {/* App Store Buttons */}
@@ -204,7 +204,7 @@ export default function SofaFooter() {
 
               {/* Copyright */}
               <p className="text-sm text-green-100 font-condensed">
-                © 2026 NobarMeriah – Hak cipta dilindungi undang-undang.
+                © 2026 ScoreMeriah – Hak cipta dilindungi undang-undang.
               </p>
 
               {/* Policy Links */}
@@ -236,7 +236,7 @@ export default function SofaFooter() {
           <div className="px-4 py-6">
             <h3 className="text-base font-bold font-condensed mb-3">Tentang</h3>
             <p className="text-green-100 text-sm leading-relaxed">
-              Skor Live Sepak Bola di NobarMeriah Livescore menghadirkan liputan Live dari lebih dari 500 liga, piala,
+              Skor Live Sepak Bola di ScoreMeriah Livescore menghadirkan liputan Live dari lebih dari 500 liga, piala,
               dan turnamen di seluruh dunia dengan update real-time untuk hasil, statistik, klasemen, cuplikan video,
               dan jadwal. Semua laga Live dari tiap liga Sepak Bola punya update cepat dan akurat untuk menit, skor,
               paruh waktu dan hasil akhir, pencetak gol dan assist, kartu, pergantian pemain, serta statistik laga.
@@ -289,13 +289,13 @@ export default function SofaFooter() {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                 <img
-                  src="/images/ScoreMeriahLogoIcon.png"
-                  alt="NobarMeriah"
+                  src="/images/ScoreMeriahLogo-Icon.png"
+                  alt="ScoreMeriah"
                   className="w-6 h-6 object-contain"
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               </div>
-              <span className="text-lg font-bold font-condensed">NobarMeriah</span>
+              <span className="text-lg font-bold font-condensed">ScoreMeriah</span>
             </div>
 
             {/* App Store Buttons */}
@@ -360,7 +360,7 @@ export default function SofaFooter() {
 
             {/* Copyright */}
             <p className="text-sm text-green-200 font-condensed">
-              © 2026 NobarMeriah – Hak cipta dilindungi undang-undang.
+              © 2026 ScoreMeriah – Hak cipta dilindungi undang-undang.
             </p>
           </div>
         </div>

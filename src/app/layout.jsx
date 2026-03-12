@@ -6,15 +6,15 @@ import BottomNav from '@/components/BottomNav';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'NobarMeriah - Live Score & Prediksi Bola',
-  description: 'Platform live score, streaming, dan prediksi pertandingan sepak bola terlengkap di Indonesia. Tebak skor, kumpulkan poin, tukar hadiah menarik!',
-  keywords: 'live score, prediksi bola, streaming bola, tebak skor, sepak bola indonesia',
+  title: 'ScoreMeriah.com – Live Score, Jadwal Bola, Hasil Pertandingan & Klasemen Liga',
+  description: 'Pantau live score bola terbaru di ScoreMeriah.com. Dapatkan update hasil pertandingan, jadwal bola hari ini, klasemen liga, dan statistik pertandingan secara real-time',
+  keywords: 'score meriah, live score, prediksi bola, streaming bola, tebak skor, sepak bola indonesia',
   openGraph: {
-    title: 'NobarMeriah - Live Score & Prediksi Bola',
+    title: 'ScoreMeriah.com – Live Score, Jadwal Bola, Hasil Pertandingan & Klasemen Liga',
     description: 'Platform live score, streaming, dan prediksi pertandingan sepak bola terlengkap di Indonesia.',
     type: 'website',
     locale: 'id_ID',
-    siteName: 'NobarMeriah',
+    siteName: 'ScoreMeriah',
   },
 };
 
@@ -22,7 +22,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="id">
       <head>
-        <link rel="icon" href="/images/ScoreMeriahLogoIcon.png" />
+        <link rel="icon" href="/images/ScoreMeriahLogo-Icon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={inter.className}>
