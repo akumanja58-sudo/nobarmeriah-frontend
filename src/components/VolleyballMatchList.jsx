@@ -8,12 +8,12 @@ import { ChevronDown, ChevronUp, Star, Trophy, Award, Circle } from 'lucide-reac
 // VOLLEYBALL MATCH LIST COMPONENT
 // ============================================================
 
-export default function VolleyballMatchList({ 
-    games = [], 
-    grouped = [], 
+export default function VolleyballMatchList({
+    games = [],
+    grouped = [],
     onGameClick,
     favorites = [],
-    onToggleFavorite 
+    onToggleFavorite
 }) {
     const router = useRouter();
     const [collapsedLeagues, setCollapsedLeagues] = useState({});
@@ -31,17 +31,14 @@ export default function VolleyballMatchList({
 
     // Handle game click
     const handleGameClick = (game) => {
-        if (onGameClick) {
-            onGameClick(game);
-        } else {
-            router.push(`/volleyball/game/${game.id}`);
-        }
+        onGameClick?.(game);
+        router.push(`/volleyball/game/${game.id}`);
     };
 
     // Get league icon based on tier
     const getLeagueIcon = (tier, leagueName) => {
         const name = leagueName?.toLowerCase() || '';
-        
+
         if (name.includes('champions') || name.includes('cev')) {
             return <Trophy className="w-5 h-5 text-cyan-500" />;
         }
@@ -57,7 +54,7 @@ export default function VolleyballMatchList({
     // Format set scores display
     const formatSetScores = (sets) => {
         if (!sets) return null;
-        
+
         const setScores = [];
         for (let i = 1; i <= 5; i++) {
             const homeSet = sets.home?.[`set${i}`];
@@ -96,9 +93,9 @@ export default function VolleyballMatchList({
                     >
                         <div className="flex items-center gap-3">
                             {league.league_logo ? (
-                                <img 
-                                    src={league.league_logo} 
-                                    alt="" 
+                                <img
+                                    src={league.league_logo}
+                                    alt=""
                                     className="w-6 h-6 object-contain"
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                 />
@@ -124,9 +121,9 @@ export default function VolleyballMatchList({
                         <div className="divide-y divide-gray-100">
                             {league.games.map((game) => {
                                 const setScores = formatSetScores(game.sets);
-                                
+
                                 return (
-                                    <div 
+                                    <div
                                         key={game.id}
                                         className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
                                         onClick={() => handleGameClick(game)}
@@ -158,9 +155,9 @@ export default function VolleyballMatchList({
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     {game.homeTeam?.logo ? (
-                                                        <img 
-                                                            src={game.homeTeam.logo} 
-                                                            alt="" 
+                                                        <img
+                                                            src={game.homeTeam.logo}
+                                                            alt=""
                                                             className="w-5 h-5 object-contain flex-shrink-0"
                                                             onError={(e) => { e.target.style.display = 'none'; }}
                                                         />
@@ -169,19 +166,17 @@ export default function VolleyballMatchList({
                                                             {game.homeTeam?.name?.[0] || 'H'}
                                                         </div>
                                                     )}
-                                                    <span className={`text-sm font-condensed truncate ${
-                                                        game.isFinished && game.homeScore > game.awayScore
+                                                    <span className={`text-sm font-condensed truncate ${game.isFinished && game.homeScore > game.awayScore
                                                             ? 'font-semibold text-gray-900'
                                                             : 'text-gray-700'
-                                                    }`}>
+                                                        }`}>
                                                         {game.homeTeam?.name || 'Home'}
                                                     </span>
                                                 </div>
-                                                <span className={`text-sm font-bold font-condensed ml-2 ${
-                                                    game.isFinished && game.homeScore > game.awayScore
+                                                <span className={`text-sm font-bold font-condensed ml-2 ${game.isFinished && game.homeScore > game.awayScore
                                                         ? 'text-cyan-600'
                                                         : 'text-gray-900'
-                                                }`}>
+                                                    }`}>
                                                     {game.isLive || game.isFinished ? game.homeScore : '-'}
                                                 </span>
                                             </div>
@@ -190,9 +185,9 @@ export default function VolleyballMatchList({
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     {game.awayTeam?.logo ? (
-                                                        <img 
-                                                            src={game.awayTeam.logo} 
-                                                            alt="" 
+                                                        <img
+                                                            src={game.awayTeam.logo}
+                                                            alt=""
                                                             className="w-5 h-5 object-contain flex-shrink-0"
                                                             onError={(e) => { e.target.style.display = 'none'; }}
                                                         />
@@ -201,19 +196,17 @@ export default function VolleyballMatchList({
                                                             {game.awayTeam?.name?.[0] || 'A'}
                                                         </div>
                                                     )}
-                                                    <span className={`text-sm font-condensed truncate ${
-                                                        game.isFinished && game.awayScore > game.homeScore
+                                                    <span className={`text-sm font-condensed truncate ${game.isFinished && game.awayScore > game.homeScore
                                                             ? 'font-semibold text-gray-900'
                                                             : 'text-gray-700'
-                                                    }`}>
+                                                        }`}>
                                                         {game.awayTeam?.name || 'Away'}
                                                     </span>
                                                 </div>
-                                                <span className={`text-sm font-bold font-condensed ml-2 ${
-                                                    game.isFinished && game.awayScore > game.homeScore
+                                                <span className={`text-sm font-bold font-condensed ml-2 ${game.isFinished && game.awayScore > game.homeScore
                                                         ? 'text-cyan-600'
                                                         : 'text-gray-900'
-                                                }`}>
+                                                    }`}>
                                                     {game.isLive || game.isFinished ? game.awayScore : '-'}
                                                 </span>
                                             </div>
@@ -224,19 +217,17 @@ export default function VolleyballMatchList({
                                                     <span className="text-[10px] text-gray-400 font-condensed">SET:</span>
                                                     <div className="flex gap-1">
                                                         {setScores.map((set, idx) => (
-                                                            <div 
-                                                                key={idx} 
+                                                            <div
+                                                                key={idx}
                                                                 className="text-center bg-gray-50 rounded px-1.5 py-0.5"
                                                             >
-                                                                <span className={`text-[10px] font-bold ${
-                                                                    set.home > set.away ? 'text-cyan-600' : 'text-gray-500'
-                                                                }`}>
+                                                                <span className={`text-[10px] font-bold ${set.home > set.away ? 'text-cyan-600' : 'text-gray-500'
+                                                                    }`}>
                                                                     {set.home}
                                                                 </span>
                                                                 <span className="text-[10px] text-gray-300 mx-0.5">-</span>
-                                                                <span className={`text-[10px] font-bold ${
-                                                                    set.away > set.home ? 'text-cyan-600' : 'text-gray-500'
-                                                                }`}>
+                                                                <span className={`text-[10px] font-bold ${set.away > set.home ? 'text-cyan-600' : 'text-gray-500'
+                                                                    }`}>
                                                                     {set.away}
                                                                 </span>
                                                             </div>
@@ -254,12 +245,11 @@ export default function VolleyballMatchList({
                                             }}
                                             className="ml-3 p-1.5 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
                                         >
-                                            <Star 
-                                                className={`w-4 h-4 ${
-                                                    isFavorite(game.id) 
-                                                        ? 'fill-yellow-400 text-yellow-400' 
+                                            <Star
+                                                className={`w-4 h-4 ${isFavorite(game.id)
+                                                        ? 'fill-yellow-400 text-yellow-400'
                                                         : 'text-gray-300'
-                                                }`} 
+                                                    }`}
                                             />
                                         </button>
                                     </div>

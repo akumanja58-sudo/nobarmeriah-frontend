@@ -8,9 +8,9 @@ import { ChevronDown, ChevronUp, Flag, Calendar, MapPin, Clock, CheckCircle, Cir
 // F1 RACE LIST COMPONENT
 // ============================================================
 
-export default function F1RaceList({ 
-    races = [], 
-    onRaceClick 
+export default function F1RaceList({
+    races = [],
+    onRaceClick
 }) {
     const router = useRouter();
     const [showPastRaces, setShowPastRaces] = useState(false);
@@ -28,19 +28,16 @@ export default function F1RaceList({
 
     // Handle race click
     const handleRaceClick = (race) => {
-        if (onRaceClick) {
-            onRaceClick(race);
-        } else {
-            router.push(`/formula1/race/${race.id}`);
-        }
+        onRaceClick?.(race);
+        router.push(`/formula1/race/${race.id}`);
     };
 
     // Format date
     const formatDate = (dateStr) => {
         if (!dateStr) return '-';
         const date = new Date(dateStr);
-        return date.toLocaleDateString('id-ID', { 
-            day: 'numeric', 
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
             month: 'short',
             year: 'numeric'
         });
@@ -96,19 +93,17 @@ export default function F1RaceList({
                             const isNextRace = index === 0;
 
                             return (
-                                <div 
+                                <div
                                     key={race.id}
                                     onClick={() => handleRaceClick(race)}
-                                    className={`flex items-center gap-4 px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                                        isNextRace ? 'bg-red-50' : ''
-                                    }`}
+                                    className={`flex items-center gap-4 px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors ${isNextRace ? 'bg-red-50' : ''
+                                        }`}
                                 >
                                     {/* Round Number */}
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                                        isNextRace 
-                                            ? 'bg-red-600 text-white' 
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${isNextRace
+                                            ? 'bg-red-600 text-white'
                                             : 'bg-gray-100 text-gray-600'
-                                    }`}>
+                                        }`}>
                                         {index + 1}
                                     </div>
 
@@ -139,9 +134,8 @@ export default function F1RaceList({
                                     {/* Days Until */}
                                     {daysUntil !== null && daysUntil > 0 && (
                                         <div className="text-right">
-                                            <p className={`text-lg font-bold font-condensed ${
-                                                isNextRace ? 'text-red-600' : 'text-gray-600'
-                                            }`}>
+                                            <p className={`text-lg font-bold font-condensed ${isNextRace ? 'text-red-600' : 'text-gray-600'
+                                                }`}>
                                                 {daysUntil}
                                             </p>
                                             <p className="text-[10px] text-gray-400 font-condensed">hari lagi</p>
@@ -178,7 +172,7 @@ export default function F1RaceList({
                     {showPastRaces && (
                         <div className="divide-y divide-gray-100">
                             {pastRaces.map((race, index) => (
-                                <div 
+                                <div
                                     key={race.id}
                                     onClick={() => handleRaceClick(race)}
                                     className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"

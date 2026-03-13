@@ -1,14 +1,16 @@
 'use client';
 
-const OrbitLoader = ({ size = 48, text = 'Memuat...' }) => {
+const OrbitLoader = ({ size = 48, text = 'Memuat...', color = '#22C55E', colorAlt = null }) => {
+  const altColor = colorAlt || color;
+
   return (
     <div className="flex flex-col items-center justify-center">
       {/* Loader */}
-      <div 
+      <div
         className="orbit-loader"
-        style={{ width: size, height: size }}
+        style={{ width: size, height: size, color: color }}
       />
-      
+
       {/* Text */}
       {text && (
         <p className="text-gray-500 font-condensed mt-4 text-sm">{text}</p>
@@ -20,7 +22,6 @@ const OrbitLoader = ({ size = 48, text = 'Memuat...' }) => {
           transform: rotateZ(45deg);
           perspective: 1000px;
           border-radius: 50%;
-          color: #22C55E; /* green-500 - ijo terang */
         }
 
         .orbit-loader::before,
@@ -38,7 +39,7 @@ const OrbitLoader = ({ size = 48, text = 'Memuat...' }) => {
         }
 
         .orbit-loader::after {
-          color: #15803D; /* green-700 - ijo gelap */
+          color: ${altColor};
           transform: rotateY(70deg);
           animation-delay: 0.4s;
         }

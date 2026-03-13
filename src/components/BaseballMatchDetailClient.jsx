@@ -2,556 +2,328 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    ArrowLeft, Star, Share2, Trophy, Clock, MapPin, 
-    ChevronRight, Loader2, Circle, Users
-} from 'lucide-react';
-
+import { Star, Share2, ChevronLeft, RefreshCw, Loader2, Trophy } from 'lucide-react';
+import { supabase } from '@/utils/supabaseClient';
 import SofaHeader from '@/components/SofaHeader';
 import SofaFooter from '@/components/SofaFooter';
+import OrbitLoader from '@/components/OrbitLoader';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 export default function BaseballMatchDetailClient({ gameId }) {
     const router = useRouter();
-    
-    // State
+    const [user, setUser] = useState(null);
+    const [username, setUsername] = useState('');
+    const [isLoadingAuth, setIsLoadingAuth] = useState(true);
     const [game, setGame] = useState(null);
-    const [h2h, setH2H] = useState([]);
+    const [h2h, setH2H] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingH2H, setIsLoadingH2H] = useState(false);
     const [error, setError] = useState(null);
-    const [isFavorite, setIsFavorite] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState(null);
     const [activeTab, setActiveTab] = useState('ringkasan');
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [isDesktop, setIsDesktop] = useState(false);
 
-    // ============================================================
-    // FETCH DATA
-    // ============================================================
-    
-    const fetchGameDetail = async () => {
+    useEffect(() => {
+        const check = () => setIsDesktop(window.innerWidth >= 1024);
+        check(); window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+
+    // Auth
+    useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                setIsLoadingAuth(true);
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    setUser(session.user);
+                    const { data: profile } = await supabase.from('profiles').select('username').eq('email', session.user.email).single();
+                    if (profile?.username) setUsername(profile.username);
+                }
+            } catch (e) { console.error('Auth error:', e); }
+            finally { setIsLoadingAuth(false); }
+        };
+        checkAuth();
+    }, []);
+
+    // Fetch game
+    const fetchGame = async (isBackground = false) => {
+        if (!gameId) return;
+        if (!isBackground) setIsLoading(true);
+        setError(null);
         try {
-            setIsLoading(true);
-            setError(null);
-            
-            const response = await fetch(`${API_BASE_URL}/api/baseball/game/${gameId}`);
-            const data = await response.json();
-            
+            const res = await fetch(`${API_BASE_URL}/api/baseball/game/${gameId}`);
+            const data = await res.json();
             if (data.success && data.game) {
                 setGame(data.game);
-                
-                // Fetch H2H if we have both team IDs
-                if (data.game.homeTeam?.id && data.game.awayTeam?.id) {
-                    fetchH2H(data.game.homeTeam.id, data.game.awayTeam.id);
-                }
-            } else {
-                setError(data.error || 'Game not found');
-            }
-        } catch (err) {
-            console.error('Error fetching game:', err);
-            setError('Gagal memuat data pertandingan');
-        } finally {
-            setIsLoading(false);
-        }
+                setLastUpdated(new Date());
+                if (data.game.homeTeam?.id && data.game.awayTeam?.id) fetchH2H(data.game.homeTeam.id, data.game.awayTeam.id);
+            } else { setError('Game tidak ditemukan'); }
+        } catch (err) { console.error('Fetch error:', err); setError('Gagal memuat data game'); }
+        finally { if (!isBackground) setIsLoading(false); }
     };
 
-    const fetchH2H = async (team1, team2) => {
+    useEffect(() => { fetchGame(); }, [gameId]);
+    useEffect(() => { if (!game?.isLive) return; const i = setInterval(() => fetchGame(true), 30000); return () => clearInterval(i); }, [game?.isLive]);
+
+    const fetchH2H = async (t1, t2) => {
+        setIsLoadingH2H(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/baseball/h2h?team1=${team1}&team2=${team2}`);
-            const data = await response.json();
-            
-            if (data.success && data.h2h) {
-                setH2H(data.h2h.slice(0, 5));
-            }
-        } catch (err) {
-            console.error('Error fetching H2H:', err);
-        }
+            const res = await fetch(`${API_BASE_URL}/api/baseball/h2h?team1=${t1}&team2=${t2}`);
+            const data = await res.json();
+            if (data.success && data.h2h) setH2H(data.h2h);
+        } catch (e) { console.error('H2H error:', e); }
+        finally { setIsLoadingH2H(false); }
     };
 
-    useEffect(() => {
-        if (gameId) {
-            fetchGameDetail();
-        }
-    }, [gameId]);
-
-    // Auto refresh for live games
-    useEffect(() => {
-        if (game?.isLive) {
-            const interval = setInterval(fetchGameDetail, 30000);
-            return () => clearInterval(interval);
-        }
-    }, [game?.isLive]);
-
-    // Check favorite status
     useEffect(() => {
         const saved = localStorage.getItem('baseball_favorites');
-        if (saved) {
-            const favorites = JSON.parse(saved);
-            setIsFavorite(favorites.includes(parseInt(gameId)));
-        }
+        if (saved) { setIsFavorite(JSON.parse(saved).includes(parseInt(gameId))); }
     }, [gameId]);
 
-    // ============================================================
-    // HANDLERS
-    // ============================================================
-
+    const handleAuthRedirect = () => router.push('/auth');
+    const handleManualRefresh = () => fetchGame(false);
     const handleToggleFavorite = () => {
         const saved = localStorage.getItem('baseball_favorites');
-        let favorites = saved ? JSON.parse(saved) : [];
-        
-        if (isFavorite) {
-            favorites = favorites.filter(id => id !== parseInt(gameId));
-        } else {
-            favorites.push(parseInt(gameId));
-        }
-        
-        localStorage.setItem('baseball_favorites', JSON.stringify(favorites));
+        let favs = saved ? JSON.parse(saved) : [];
+        favs = isFavorite ? favs.filter(id => id !== parseInt(gameId)) : [...favs, parseInt(gameId)];
+        localStorage.setItem('baseball_favorites', JSON.stringify(favs));
         setIsFavorite(!isFavorite);
     };
 
-    const handleShare = async () => {
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `${game?.homeTeam?.name} vs ${game?.awayTeam?.name}`,
-                    url: window.location.href
-                });
-            } catch (err) {
-                console.log('Share cancelled');
-            }
-        }
-    };
-
-    // Format inning scores
+    // Format innings
     const formatInningScores = () => {
         if (!game?.innings) return [];
-        
-        const inningScores = [];
+        const scores = [];
         for (let i = 1; i <= 9; i++) {
-            const homeInn = game.innings.home?.[`inn${i}`];
-            const awayInn = game.innings.away?.[`inn${i}`];
-            if (homeInn !== null && homeInn !== undefined) {
-                inningScores.push({ 
-                    num: i, 
-                    home: homeInn, 
-                    away: awayInn,
-                    homeWon: homeInn > awayInn
-                });
-            }
+            const h = game.innings.home?.[`inn${i}`];
+            const a = game.innings.away?.[`inn${i}`];
+            if (h !== null && h !== undefined) scores.push({ num: i, home: h, away: a });
         }
-        return inningScores;
+        return scores;
     };
 
     // ============================================================
-    // RENDER
+    // RENDER: GAME HEADER
     // ============================================================
-
-    if (isLoading) {
+    const renderGameHeader = () => {
+        const isLive = game?.isLive;
+        const isFinished = game?.isFinished;
         return (
-            <div className="min-h-screen bg-gray-100">
-                <SofaHeader />
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-red-500" />
-                    <span className="ml-3 text-gray-500 font-condensed">Memuat pertandingan...</span>
-                </div>
-                <SofaFooter />
-            </div>
-        );
-    }
-
-    if (error || !game) {
-        return (
-            <div className="min-h-screen bg-gray-100">
-                <SofaHeader />
-                <div className="max-w-4xl mx-auto px-4 py-20">
-                    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                        <p className="text-red-500 font-condensed mb-4">{error || 'Pertandingan tidak ditemukan'}</p>
-                        <button
-                            onClick={() => router.back()}
-                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-condensed"
-                        >
-                            Kembali
-                        </button>
-                    </div>
-                </div>
-                <SofaFooter />
-            </div>
-        );
-    }
-
-    const inningScores = formatInningScores();
-
-    return (
-        <div className="min-h-screen bg-gray-100">
-            <SofaHeader />
-
-            <main className="max-w-7xl mx-auto px-4 py-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Main Content */}
-                    <div className="lg:col-span-8">
-                        {/* Back Button */}
-                        <button
-                            onClick={() => router.back()}
-                            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 font-condensed"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Kembali
-                        </button>
-
-                        {/* Match Header Card */}
-                        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
-                            {/* League Header */}
-                            <div className="bg-gradient-to-r from-red-600 to-red-500 px-4 py-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        {game.league?.logo ? (
-                                            <img 
-                                                src={game.league.logo} 
-                                                alt="" 
-                                                className="w-6 h-6 object-contain"
-                                            />
-                                        ) : (
-                                            <Trophy className="w-5 h-5 text-white" />
-                                        )}
-                                        <div>
-                                            <p className="text-white font-semibold text-sm font-condensed">
-                                                {game.league?.name || 'Baseball'}
-                                            </p>
-                                            <p className="text-red-100 text-xs font-condensed">
-                                                {game.country?.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {game.isLive && (
-                                        <span className="bg-white text-red-600 text-xs font-bold px-2 py-1 rounded animate-pulse font-condensed flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                            {game.currentInning ? `Inn ${game.currentInning}` : 'LIVE'}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Teams & Score */}
-                            <div className="p-6">
-                                <div className="flex items-center justify-between">
-                                    {/* Home Team */}
-                                    <div className="flex-1 text-center">
-                                        {game.homeTeam?.logo ? (
-                                            <img 
-                                                src={game.homeTeam.logo} 
-                                                alt="" 
-                                                className="w-20 h-20 object-contain mx-auto mb-3"
-                                            />
-                                        ) : (
-                                            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3">
-                                                {game.homeTeam?.name?.[0] || 'H'}
-                                            </div>
-                                        )}
-                                        <p className={`font-bold text-lg font-condensed ${
-                                            game.isFinished && game.homeScore > game.awayScore 
-                                                ? 'text-red-600' 
-                                                : 'text-gray-800'
-                                        }`}>
-                                            {game.homeTeam?.name || 'Home'}
-                                        </p>
-                                        {game.isFinished && game.homeScore > game.awayScore && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-red-600 mt-1">
-                                                <Trophy className="w-3 h-3" /> Pemenang
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Score */}
-                                    <div className="px-8 text-center">
-                                        {(game.isLive || game.isFinished) ? (
-                                            <>
-                                                <div className="text-5xl font-bold text-gray-900 font-condensed">
-                                                    {game.homeScore} - {game.awayScore}
-                                                </div>
-                                                <p className={`text-sm mt-2 font-condensed ${
-                                                    game.isLive ? 'text-red-600' : 'text-gray-500'
-                                                }`}>
-                                                    {game.isLive && (
-                                                        <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse"></span>
-                                                    )}
-                                                    {game.statusLong || game.status || 'Selesai'}
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="text-3xl font-bold text-gray-300 font-condensed">VS</div>
-                                                <p className="text-sm text-gray-500 mt-2 font-condensed">
-                                                    {game.time?.substring(0, 5) || '-'}
-                                                </p>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Away Team */}
-                                    <div className="flex-1 text-center">
-                                        {game.awayTeam?.logo ? (
-                                            <img 
-                                                src={game.awayTeam.logo} 
-                                                alt="" 
-                                                className="w-20 h-20 object-contain mx-auto mb-3"
-                                            />
-                                        ) : (
-                                            <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3">
-                                                {game.awayTeam?.name?.[0] || 'A'}
-                                            </div>
-                                        )}
-                                        <p className={`font-bold text-lg font-condensed ${
-                                            game.isFinished && game.awayScore > game.homeScore 
-                                                ? 'text-red-600' 
-                                                : 'text-gray-800'
-                                        }`}>
-                                            {game.awayTeam?.name || 'Away'}
-                                        </p>
-                                        {game.isFinished && game.awayScore > game.homeScore && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-red-600 mt-1">
-                                                <Trophy className="w-3 h-3" /> Pemenang
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Inning Scores Table */}
-                                {(game.isLive || game.isFinished) && inningScores.length > 0 && (
-                                    <div className="mt-6 pt-6 border-t border-gray-100 overflow-x-auto">
-                                        <table className="w-full min-w-[500px]">
-                                            <thead>
-                                                <tr className="text-xs text-gray-500 font-condensed">
-                                                    <th className="text-left py-2">Tim</th>
-                                                    {inningScores.map((inn) => (
-                                                        <th key={inn.num} className="text-center py-2 w-8">{inn.num}</th>
-                                                    ))}
-                                                    <th className="text-center py-2 w-10 bg-red-50">R</th>
-                                                    <th className="text-center py-2 w-10">H</th>
-                                                    <th className="text-center py-2 w-10">E</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr className="border-t border-gray-100">
-                                                    <td className="py-3 font-semibold font-condensed text-sm">
-                                                        {game.homeTeam?.name}
-                                                    </td>
-                                                    {inningScores.map((inn) => (
-                                                        <td key={inn.num} className={`text-center py-3 font-bold font-condensed text-sm ${
-                                                            inn.home > inn.away ? 'text-red-600' : 'text-gray-600'
-                                                        }`}>
-                                                            {inn.home ?? '-'}
-                                                        </td>
-                                                    ))}
-                                                    <td className="text-center py-3 font-bold font-condensed bg-red-50 text-red-600">
-                                                        {game.homeScore}
-                                                    </td>
-                                                    <td className="text-center py-3 font-condensed text-gray-600">
-                                                        {game.stats?.home?.hits ?? '-'}
-                                                    </td>
-                                                    <td className="text-center py-3 font-condensed text-gray-600">
-                                                        {game.stats?.home?.errors ?? '-'}
-                                                    </td>
-                                                </tr>
-                                                <tr className="border-t border-gray-100">
-                                                    <td className="py-3 font-semibold font-condensed text-sm">
-                                                        {game.awayTeam?.name}
-                                                    </td>
-                                                    {inningScores.map((inn) => (
-                                                        <td key={inn.num} className={`text-center py-3 font-bold font-condensed text-sm ${
-                                                            inn.away > inn.home ? 'text-red-600' : 'text-gray-600'
-                                                        }`}>
-                                                            {inn.away ?? '-'}
-                                                        </td>
-                                                    ))}
-                                                    <td className="text-center py-3 font-bold font-condensed bg-red-50 text-red-600">
-                                                        {game.awayScore}
-                                                    </td>
-                                                    <td className="text-center py-3 font-condensed text-gray-600">
-                                                        {game.stats?.away?.hits ?? '-'}
-                                                    </td>
-                                                    <td className="text-center py-3 font-condensed text-gray-600">
-                                                        {game.stats?.away?.errors ?? '-'}
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-
-                                {/* Action Buttons */}
-                                <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-gray-100">
-                                    <button
-                                        onClick={handleToggleFavorite}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-condensed ${
-                                            isFavorite 
-                                                ? 'bg-yellow-100 text-yellow-700' 
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-500' : ''}`} />
-                                        {isFavorite ? 'Favorit' : 'Tambah Favorit'}
-                                    </button>
-                                    <button
-                                        onClick={handleShare}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors font-condensed"
-                                    >
-                                        <Share2 className="w-4 h-4" />
-                                        Bagikan
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tabs */}
-                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                            <div className="flex border-b border-gray-100">
-                                <button
-                                    onClick={() => setActiveTab('ringkasan')}
-                                    className={`flex-1 py-3 text-sm font-semibold font-condensed transition-colors ${
-                                        activeTab === 'ringkasan'
-                                            ? 'text-red-600 border-b-2 border-red-600'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                >
-                                    Ringkasan
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('h2h')}
-                                    className={`flex-1 py-3 text-sm font-semibold font-condensed transition-colors ${
-                                        activeTab === 'h2h'
-                                            ? 'text-red-600 border-b-2 border-red-600'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                >
-                                    Head to Head
-                                </button>
-                            </div>
-
-                            <div className="p-4">
-                                {activeTab === 'ringkasan' && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                            <Clock className="w-5 h-5 text-gray-400" />
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-800 font-condensed">Waktu</p>
-                                                <p className="text-sm text-gray-500 font-condensed">
-                                                    {game.date?.split('T')[0]} • {game.time?.substring(0, 5) || '-'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                            <Trophy className="w-5 h-5 text-gray-400" />
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-800 font-condensed">Kompetisi</p>
-                                                <p className="text-sm text-gray-500 font-condensed">
-                                                    {game.league?.name} • {game.league?.season}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {activeTab === 'h2h' && (
-                                    <div>
-                                        {h2h.length > 0 ? (
-                                            <div className="space-y-3">
-                                                <p className="text-sm text-gray-500 font-condensed mb-3">
-                                                    5 Pertemuan terakhir
-                                                </p>
-                                                {h2h.map((match, idx) => (
-                                                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                                        <div className="flex-1">
-                                                            <p className="text-sm font-semibold font-condensed">
-                                                                {match.homeTeam?.name}
-                                                            </p>
-                                                        </div>
-                                                        <div className="px-4 text-center">
-                                                            <span className="font-bold font-condensed">
-                                                                {match.homeScore} - {match.awayScore}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex-1 text-right">
-                                                            <p className="text-sm font-semibold font-condensed">
-                                                                {match.awayTeam?.name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-8">
-                                                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                                <p className="text-gray-500 font-condensed">Tidak ada data H2H</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                {/* Desktop */}
+                <div className="hidden md:block p-6 relative">
+                    <div className="bg-gradient-to-r from-red-600 to-red-500 -mx-6 -mt-6 px-6 py-3 mb-6">
+                        <div className="flex items-center gap-2">
+                            {game?.league?.logo && <img src={game.league.logo} alt="" className="w-6 h-6 object-contain" />}
+                            <span className="text-white font-bold font-condensed text-sm">{game?.league?.name}</span>
+                            <span className="text-red-100 text-xs font-condensed">{game?.country?.name}</span>
                         </div>
                     </div>
+                    {isLive && (
+                        <div className="absolute top-16 left-4 flex items-center gap-1.5 bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">
+                            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>LIVE • {game.status}
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            <div className="w-20 h-20 mb-3 flex items-center justify-center">
+                                {game?.homeTeam?.logo ? <img src={game.homeTeam.logo} alt={game.homeTeam.name} className="w-full h-full object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+                                <div className={`w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full ${game?.homeTeam?.logo ? 'hidden' : 'flex'} items-center justify-center`}><span className="text-3xl text-white font-bold">{game?.homeTeam?.name?.[0] || 'H'}</span></div>
+                            </div>
+                            <h2 className={`text-lg font-bold font-condensed ${isFinished && game.homeScore > game.awayScore ? 'text-green-600' : 'text-gray-800'}`}>{game?.homeTeam?.name || 'Home'}</h2>
+                            {isFinished && game.homeScore > game.awayScore && <div className="flex items-center gap-1 text-yellow-500 mt-1"><Trophy className="w-4 h-4" /><span className="text-xs font-condensed">Pemenang</span></div>}
+                        </div>
+                        <div className="flex-shrink-0 flex flex-col items-center px-6">
+                            {(isLive || isFinished) ? (
+                                <><div className="text-5xl font-bold text-gray-900 font-condensed">{game?.homeScore || 0} - {game?.awayScore || 0}</div><div className={`text-sm mt-2 font-condensed ${isLive ? 'text-red-600 font-bold' : 'text-gray-500'}`}>{game.status}</div></>
+                            ) : (
+                                <><div className="text-2xl font-bold text-gray-900 font-condensed">VS</div><div className="text-lg text-gray-600 font-condensed mt-1">{game?.time?.substring(0, 5)}</div><div className="text-xs text-gray-400 font-condensed">{game?.date?.split('T')[0]}</div></>
+                            )}
+                        </div>
+                        <div className="flex-1 flex flex-col items-center text-center">
+                            <div className="w-20 h-20 mb-3 flex items-center justify-center">
+                                {game?.awayTeam?.logo ? <img src={game.awayTeam.logo} alt={game.awayTeam.name} className="w-full h-full object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} /> : null}
+                                <div className={`w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full ${game?.awayTeam?.logo ? 'hidden' : 'flex'} items-center justify-center`}><span className="text-3xl text-white font-bold">{game?.awayTeam?.name?.[0] || 'A'}</span></div>
+                            </div>
+                            <h2 className={`text-lg font-bold font-condensed ${isFinished && game.awayScore > game.homeScore ? 'text-green-600' : 'text-gray-800'}`}>{game?.awayTeam?.name || 'Away'}</h2>
+                            {isFinished && game.awayScore > game.homeScore && <div className="flex items-center gap-1 text-yellow-500 mt-1"><Trophy className="w-4 h-4" /><span className="text-xs font-condensed">Pemenang</span></div>}
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 mt-4">
+                        <button onClick={handleToggleFavorite} className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-condensed transition-colors ${isFavorite ? 'bg-yellow-50 border-yellow-300 text-yellow-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}><Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-500' : ''}`} />{isFavorite ? 'Favorit' : 'Tambah Favorit'}</button>
+                        <button className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 text-gray-500 text-sm font-condensed hover:bg-gray-50"><Share2 className="w-4 h-4" />Bagikan</button>
+                    </div>
+                </div>
+                {/* Mobile */}
+                <div className="md:hidden p-4 relative">
+                    <div className="bg-gradient-to-r from-red-600 to-red-500 -mx-4 -mt-4 px-4 py-2.5 mb-4">
+                        <div className="flex items-center gap-2">
+                            {game?.league?.logo && <img src={game.league.logo} alt="" className="w-5 h-5 object-contain" />}
+                            <span className="text-white font-bold font-condensed text-xs">{game?.league?.name}</span>
+                            <span className="text-red-100 text-[10px] font-condensed">{game?.country?.name}</span>
+                        </div>
+                    </div>
+                    {isLive && <div className="absolute top-12 left-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded text-[10px] font-bold"><span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>LIVE</div>}
+                    <div className="absolute top-12 right-2 flex items-center gap-1">
+                        <button onClick={handleToggleFavorite} className={`p-1.5 rounded-full ${isFavorite ? 'text-yellow-500' : 'text-gray-400'}`}><Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400' : ''}`} /></button>
+                        <button className="p-1.5 text-gray-400"><Share2 className="w-5 h-5" /></button>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-6">
+                        <div className="flex-1 flex flex-col items-center text-center min-w-0">
+                            {game?.homeTeam?.logo ? <img src={game.homeTeam.logo} alt="" className="w-14 h-14 object-contain mb-2" onError={(e) => { e.target.style.display = 'none'; }} /> : <div className="w-14 h-14 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mb-2"><span className="text-xl text-white font-bold">{game?.homeTeam?.name?.[0] || 'H'}</span></div>}
+                            <h2 className={`text-sm font-bold font-condensed line-clamp-2 ${isFinished && game.homeScore > game.awayScore ? 'text-green-600' : 'text-gray-800'}`}>{game?.homeTeam?.name}</h2>
+                        </div>
+                        <div className="flex-shrink-0 flex flex-col items-center px-3">
+                            {(isLive || isFinished) ? <><div className="text-3xl font-bold text-gray-900 font-condensed">{game?.homeScore || 0} - {game?.awayScore || 0}</div><div className={`text-xs mt-1 ${isLive ? 'text-red-600' : 'text-gray-500'}`}>{game.status}</div></> : <><div className="text-xl font-bold text-gray-900 font-condensed">{game?.date?.split('T')[0]}</div><div className="text-base text-gray-600 font-condensed">{game?.time?.substring(0, 5)}</div></>}
+                        </div>
+                        <div className="flex-1 flex flex-col items-center text-center min-w-0">
+                            {game?.awayTeam?.logo ? <img src={game.awayTeam.logo} alt="" className="w-14 h-14 object-contain mb-2" onError={(e) => { e.target.style.display = 'none'; }} /> : <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mb-2"><span className="text-xl text-white font-bold">{game?.awayTeam?.name?.[0] || 'A'}</span></div>}
+                            <h2 className={`text-sm font-bold font-condensed line-clamp-2 ${isFinished && game.awayScore > game.homeScore ? 'text-green-600' : 'text-gray-800'}`}>{game?.awayTeam?.name}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
-                    {/* Sidebar */}
-                    <div className="lg:col-span-4">
-                        {/* League Info */}
-                        <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
-                            <h3 className="font-bold text-gray-800 mb-3 font-condensed flex items-center gap-2">
-                                <Trophy className="w-5 h-5 text-red-500" />
-                                Info Liga
-                            </h3>
-                            <div className="flex items-center gap-3">
-                                {game.league?.logo ? (
-                                    <img src={game.league.logo} alt="" className="w-12 h-12 object-contain" />
-                                ) : (
-                                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                                        <Trophy className="w-6 h-6 text-red-500" />
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="font-semibold text-gray-800 font-condensed">{game.league?.name}</p>
-                                    <p className="text-sm text-gray-500 font-condensed">{game.country?.name}</p>
-                                </div>
+    // ============================================================
+    // RENDER: TAB CONTENT
+    // ============================================================
+    const renderTabContent = () => {
+        const inningScores = formatInningScores();
+        switch (activeTab) {
+            case 'ringkasan':
+                return (
+                    <div className="space-y-4">
+                        <div className="bg-white rounded-xl shadow-sm p-4">
+                            <h3 className="font-semibold text-gray-800 mb-3 font-condensed">Info Pertandingan</h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500 font-condensed mb-1">Liga</p><p className="font-semibold text-gray-800 font-condensed text-sm">{game?.league?.name}</p></div>
+                                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500 font-condensed mb-1">Season</p><p className="font-semibold text-gray-800 font-condensed text-sm">{game?.league?.season || '-'}</p></div>
+                                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500 font-condensed mb-1">Negara</p><p className="font-semibold text-gray-800 font-condensed text-sm">{game?.country?.name || '-'}</p></div>
+                                <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-500 font-condensed mb-1">Status</p><p className={`font-semibold font-condensed text-sm ${game?.isLive ? 'text-red-600' : game?.isFinished ? 'text-gray-600' : 'text-blue-600'}`}>{game?.isLive ? '🔴 Live' : game?.isFinished ? 'Selesai' : 'Belum Dimulai'}</p></div>
                             </div>
                         </div>
-
-                        {/* Quick H2H */}
-                        {h2h.length > 0 && (
-                            <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
-                                <h3 className="font-bold text-gray-800 mb-3 font-condensed">Quick H2H</h3>
-                                <div className="flex items-center justify-between">
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-red-600 font-condensed">
-                                            {h2h.filter(m => m.homeScore > m.awayScore).length}
-                                        </p>
-                                        <p className="text-xs text-gray-500 font-condensed">
-                                            {game.homeTeam?.name?.split(' ')[0]}
-                                        </p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-gray-400 font-condensed">
-                                            {h2h.filter(m => m.homeScore === m.awayScore).length}
-                                        </p>
-                                        <p className="text-xs text-gray-500 font-condensed">Seri</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-red-600 font-condensed">
-                                            {h2h.filter(m => m.awayScore > m.homeScore).length}
-                                        </p>
-                                        <p className="text-xs text-gray-500 font-condensed">
-                                            {game.awayTeam?.name?.split(' ')[0]}
-                                        </p>
-                                    </div>
+                        {/* Inning Scores */}
+                        {(game?.isLive || game?.isFinished) && inningScores.length > 0 && (
+                            <div className="bg-white rounded-xl shadow-sm p-4">
+                                <h3 className="font-semibold text-gray-800 mb-3 font-condensed">Skor Per Inning</h3>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead><tr className="border-b border-gray-200">
+                                            <th className="text-left py-2 px-3 font-semibold text-gray-600 font-condensed text-sm">Tim</th>
+                                            {inningScores.map(inn => <th key={inn.num} className="text-center py-2 px-1.5 font-semibold text-gray-600 font-condensed text-xs w-8">{inn.num}</th>)}
+                                            <th className="text-center py-2 px-2 font-semibold text-gray-800 font-condensed text-sm w-12">R</th>
+                                        </tr></thead>
+                                        <tbody>
+                                            <tr className="border-b border-gray-100">
+                                                <td className="py-2 px-3"><div className="flex items-center gap-2">{game.homeTeam?.logo && <img src={game.homeTeam.logo} alt="" className="w-5 h-5 object-contain" />}<span className="font-condensed text-sm text-gray-800">{game.homeTeam?.name}</span></div></td>
+                                                {inningScores.map(inn => <td key={inn.num} className="text-center py-2 px-1.5"><span className={`font-bold font-condensed text-xs ${inn.home > inn.away ? 'text-red-600' : 'text-gray-500'}`}>{inn.home ?? '-'}</span></td>)}
+                                                <td className="text-center py-2 px-2"><span className="font-bold font-condensed text-gray-800">{game.homeScore}</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td className="py-2 px-3"><div className="flex items-center gap-2">{game.awayTeam?.logo && <img src={game.awayTeam.logo} alt="" className="w-5 h-5 object-contain" />}<span className="font-condensed text-sm text-gray-800">{game.awayTeam?.name}</span></div></td>
+                                                {inningScores.map(inn => <td key={inn.num} className="text-center py-2 px-1.5"><span className={`font-bold font-condensed text-xs ${inn.away > inn.home ? 'text-red-600' : 'text-gray-500'}`}>{inn.away ?? '-'}</span></td>)}
+                                                <td className="text-center py-2 px-2"><span className="font-bold font-condensed text-gray-800">{game.awayScore}</span></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         )}
+                    </div>
+                );
+            case 'h2h':
+                return (
+                    <div className="bg-white rounded-xl shadow-sm p-4">
+                        <h3 className="font-semibold text-gray-800 mb-3 font-condensed">Head to Head</h3>
+                        {isLoadingH2H ? <div className="flex items-center justify-center py-8"><OrbitLoader color="#EF4444" colorAlt="#DC2626" /></div>
+                            : h2h?.length > 0 ? (
+                                <div className="space-y-2">{h2h.slice(0, 5).map((g, i) => (
+                                    <div key={i} className="bg-gray-50 rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-1"><span className="text-xs text-gray-500 font-condensed">{g.date?.split('T')[0]}</span><span className="text-xs text-gray-500 font-condensed">{g.league?.name}</span></div>
+                                        <div className="flex items-center justify-between"><span className="font-condensed text-sm">{g.homeTeam?.name}</span><span className="font-bold font-condensed">{g.homeScore} - {g.awayScore}</span><span className="font-condensed text-sm">{g.awayTeam?.name}</span></div>
+                                    </div>
+                                ))}</div>
+                            ) : <div className="text-center py-8 text-gray-500 font-condensed">Belum ada data head to head</div>}
+                    </div>
+                );
+            default: return null;
+        }
+    };
 
-                        {/* Ad Placeholder */}
-                        <div className="bg-white rounded-xl shadow-sm p-4">
-                            <div className="bg-gray-100 rounded-lg h-[250px] flex items-center justify-center">
-                                <span className="text-gray-400 text-sm font-condensed">Iklan</span>
+    // ============================================================
+    // MAIN RENDER
+    // ============================================================
+    if (isLoading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><OrbitLoader color="#EF4444" colorAlt="#DC2626" /></div>;
+
+    if (error || !game) return (
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+            <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-4"><span className="text-3xl">⚾</span></div>
+            <h1 className="text-xl font-bold text-gray-800 font-condensed mb-2">{error || 'Game tidak ditemukan'}</h1>
+            <button onClick={() => router.push('/baseball')} className="mt-4 px-6 py-2 bg-red-500 text-white rounded-full font-condensed hover:bg-red-600 transition-colors">Kembali ke Baseball</button>
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-gray-100">
+            <SofaHeader user={user} username={username} onAuthRedirect={handleAuthRedirect} />
+            <main className="pb-20 lg:pb-8">
+                <div className="max-w-7xl mx-auto px-4 py-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <button onClick={() => router.push('/baseball')} className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"><ChevronLeft className="w-5 h-5" /><span className="font-condensed">Kembali ke Baseball</span></button>
+                        <div className="hidden sm:flex items-center gap-2">
+                            {lastUpdated && <span className="text-xs text-gray-400 font-condensed">Updated: {lastUpdated.toLocaleTimeString('id-ID')}</span>}
+                            <button onClick={handleManualRefresh} disabled={isLoading} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">{isLoading ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <RefreshCw className="w-4 h-4 text-gray-500" />}</button>
+                        </div>
+                    </div>
+                    {renderGameHeader()}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+                        <div className="hidden lg:block lg:col-span-4 space-y-4">
+                            <div className="bg-white rounded-xl shadow-sm p-4">
+                                <h3 className="font-semibold text-gray-800 mb-3 font-condensed flex items-center gap-2"><Trophy className="w-5 h-5 text-red-500" />Liga</h3>
+                                <div className="flex items-center gap-3">{game?.league?.logo && <img src={game.league.logo} alt="" className="w-12 h-12 object-contain" />}<div><p className="font-semibold text-gray-800 font-condensed">{game?.league?.name}</p><p className="text-sm text-gray-500 font-condensed">{game?.country?.name} • {game?.league?.season}</p></div></div>
+                            </div>
+                            {h2h?.length > 0 && (
+                                <div className="bg-white rounded-xl shadow-sm p-4">
+                                    <h3 className="font-semibold text-gray-800 mb-3 font-condensed">⚔️ Head to Head</h3>
+                                    <div className="space-y-2">{h2h.slice(0, 3).map((g, i) => <div key={i} className="bg-gray-50 rounded-lg p-2 text-xs"><div className="flex justify-between"><span className="text-gray-500 font-condensed">{g.date?.split('T')[0]}</span><span className="font-bold font-condensed">{g.homeScore} - {g.awayScore}</span></div></div>)}</div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="lg:col-span-5 space-y-4">
+                            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                                <div className="flex border-b border-gray-200">
+                                    {[{ id: 'ringkasan', name: 'Ringkasan' }, { id: 'h2h', name: 'H2H' }].map(tab => (
+                                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-1 py-3 text-sm font-semibold font-condensed transition-colors ${activeTab === tab.id ? 'text-red-600 border-b-2 border-red-500 bg-red-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>{tab.name}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            {renderTabContent()}
+                            <div className="bg-white rounded-xl shadow-sm p-4">
+                                <h3 className="font-semibold text-gray-800 mb-3 font-condensed">Tentang pertandingan</h3>
+                                <p className="text-sm text-gray-600 leading-relaxed font-condensed">{game?.homeTeam?.name || 'Home'} menghadapi {game?.awayTeam?.name || 'Away'} pada {game?.date?.split('T')[0] || '-'} di kompetisi {game?.league?.name || 'Baseball'}.</p>
+                            </div>
+                        </div>
+                        <div className="hidden lg:block lg:col-span-3 space-y-4">
+                            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                                <div className="bg-gray-100 px-3 py-1 text-xs text-gray-500 font-condensed">Iklan</div>
+                                <div className="aspect-[300/250] bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
+                                    <div className="text-center text-white p-4">
+                                        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2"><span className="text-3xl">⚾</span></div>
+                                        <p className="text-xl font-bold font-condensed mb-1">Baseball Live</p>
+                                        <p className="text-sm font-condensed">Nonton MLB & NPB!</p>
+                                        <button className="mt-3 px-4 py-2 bg-white text-red-600 rounded-lg text-sm font-bold font-condensed hover:bg-red-50 transition-colors">STREAMING</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </main>
-
             <SofaFooter />
         </div>
     );

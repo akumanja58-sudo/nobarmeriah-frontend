@@ -1,237 +1,356 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Circle } from 'lucide-react';
+import { supabase } from '@/utils/supabaseClient';
 
+// Components
 import SofaHeader from '@/components/SofaHeader';
-import SofaFooter from '@/components/SofaFooter';
 import VolleyballMatchList from '@/components/VolleyballMatchList';
 import VolleyballMatchPreview from '@/components/VolleyballMatchPreview';
+import SofaFooter from '@/components/SofaFooter';
+import UserProfileModal from '@/components/UserProfileModal';
+import LoginRequiredModal from '@/components/LoginRequiredModal';
+import OrbitLoader from '@/components/OrbitLoader';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 export default function VolleyballPage() {
   const router = useRouter();
 
-  // State
+  // Auth State
+  const [user, setUser] = useState(null);
+  const [username, setUsername] = useState('');
+  const [points, setPoints] = useState(0);
+  const [lifetimePoints, setLifetimePoints] = useState(0);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+
+  // Game State
   const [games, setGames] = useState([]);
   const [grouped, setGrouped] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [isLoadingGames, setIsLoadingGames] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [stats, setStats] = useState({ live: 0, finished: 0, scheduled: 0 });
+
+  // Filter State
   const [activeFilter, setActiveFilter] = useState('Semua');
-  const [favorites, setFavorites] = useState([]);
 
-  // Stats
-  const [stats, setStats] = useState({
-    live: 0,
-    finished: 0,
-    scheduled: 0
-  });
+  // Modal State
+  const [showProfile, setShowProfile] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // ============================================================
-  // FETCH DATA
+  // FILTER LOGIC
   // ============================================================
+  const filteredGames = useMemo(() => {
+    switch (activeFilter) {
+      case 'Live':
+        return games.filter(g => g.isLive);
+      case 'Selesai':
+        return games.filter(g => g.isFinished);
+      case 'Semua':
+      default:
+        return games;
+    }
+  }, [games, activeFilter]);
 
-  const fetchGames = async () => {
+  const filteredGrouped = useMemo(() => {
+    if (activeFilter === 'Semua') return grouped;
+
+    return grouped.map(group => ({
+      ...group,
+      games: group.games.filter(g => {
+        if (activeFilter === 'Live') return g.isLive;
+        if (activeFilter === 'Selesai') return g.isFinished;
+        return true;
+      })
+    })).filter(group => group.games.length > 0);
+  }, [grouped, activeFilter]);
+
+  // ============================================================
+  // AUTH CHECK
+  // ============================================================
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setIsLoadingAuth(true);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError || !session?.user) {
+          setUser(null);
+          setIsLoadingAuth(false);
+          return;
+        }
+
+        setUser(session.user);
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, points, lifetime_points, season_points, total_experience')
+          .eq('email', session.user.email)
+          .single();
+
+        if (profile?.username) setUsername(profile.username);
+        if (profile?.season_points != null) setPoints(profile.season_points);
+        else if (profile?.points != null) setPoints(profile.points);
+        if (profile?.total_experience != null) setLifetimePoints(profile.total_experience);
+        else if (profile?.lifetime_points != null) setLifetimePoints(profile.lifetime_points);
+
+      } catch (error) {
+        console.error('Error in checkAuth:', error);
+        setUser(null);
+      } finally {
+        setIsLoadingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // ============================================================
+  // AUTH LISTENER
+  // ============================================================
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, points, lifetime_points')
+          .eq('email', session.user.email)
+          .single();
+
+        if (profile?.username) setUsername(profile.username);
+        if (profile?.points != null) setPoints(profile.points);
+        if (profile?.lifetime_points != null) setLifetimePoints(profile.lifetime_points);
+
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setUsername('');
+        setPoints(0);
+        setLifetimePoints(0);
+        setIsLoadingAuth(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ============================================================
+  // FETCH VOLLEYBALL GAMES
+  // ============================================================
+  const fetchGames = useCallback(async (isBackground = false) => {
     try {
-      setIsLoading(true);
-      setError(null);
+      if (!isBackground) {
+        setIsLoadingGames(true);
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/volleyball`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch volleyball games');
+      }
+
       const data = await response.json();
 
       if (data.success) {
         setGames(data.games || []);
         setGrouped(data.grouped || []);
         setStats(data.stats || { live: 0, finished: 0, scheduled: 0 });
-      } else {
-        setError(data.error || 'Gagal memuat data');
+        setLastUpdated(new Date());
+
+        // Select first live game or first game
+        if (!isBackground && data.games?.length > 0) {
+          const liveGame = data.games.find(g => g.isLive);
+          setSelectedGame(liveGame || data.games[0]);
+        }
       }
-    } catch (err) {
-      console.error('Error fetching volleyball games:', err);
-      setError('Gagal memuat data. Silakan coba lagi.');
+
+    } catch (error) {
+      console.error('❌ Error fetching volleyball games:', error);
     } finally {
-      setIsLoading(false);
+      if (!isBackground) {
+        setIsLoadingGames(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchGames();
+    fetchGames(false);
+  }, [fetchGames]);
 
-    // Auto refresh every 60 seconds
-    const interval = setInterval(fetchGames, 60000);
+  // Auto refresh every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchGames(true);
+    }, 60000);
+
     return () => clearInterval(interval);
-  }, []);
-
-  // Load favorites from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('volleyball_favorites');
-    if (saved) {
-      setFavorites(JSON.parse(saved));
-    }
-  }, []);
+  }, [fetchGames]);
 
   // ============================================================
   // HANDLERS
   // ============================================================
-
-  const handleFilterChange = (filter) => {
-    setActiveFilter(filter);
-  };
-
-  const handleToggleFavorite = (gameId) => {
-    setFavorites(prev => {
-      const newFavorites = prev.includes(gameId)
-        ? prev.filter(id => id !== gameId)
-        : [...prev, gameId];
-
-      localStorage.setItem('volleyball_favorites', JSON.stringify(newFavorites));
-      return newFavorites;
-    });
+  const handleAuthRedirect = () => {
+    router.push('/auth');
   };
 
   const handleGameClick = (game) => {
-    router.push(`/volleyball/game/${game.id}`);
+    setSelectedGame(game);
   };
-
-  // ============================================================
-  // FILTER DATA
-  // ============================================================
-
-  const getFilteredData = () => {
-    if (activeFilter === 'Semua') {
-      return { games, grouped };
-    }
-
-    const filteredGames = games.filter(game => {
-      if (activeFilter === 'Live') return game.isLive;
-      if (activeFilter === 'Selesai') return game.isFinished;
-      return true;
-    });
-
-    // Regroup filtered games
-    const filteredGrouped = grouped.map(league => ({
-      ...league,
-      games: league.games.filter(game => {
-        if (activeFilter === 'Live') return game.isLive;
-        if (activeFilter === 'Selesai') return game.isFinished;
-        return true;
-      })
-    })).filter(league => league.games.length > 0);
-
-    return { games: filteredGames, grouped: filteredGrouped };
-  };
-
-  const filteredData = getFilteredData();
 
   // ============================================================
   // RENDER
   // ============================================================
-
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <SofaHeader
+        user={user}
+        username={username}
+        onAuthRedirect={handleAuthRedirect}
+        onShowProfile={() => setShowProfile(true)}
         liveCount={stats.live}
         finishedCount={stats.finished}
         upcomingCount={stats.scheduled}
         activeFilter={activeFilter}
-        onFilterChange={handleFilterChange}
+        onFilterChange={setActiveFilter}
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-            <span className="ml-3 text-gray-500 font-condensed">Memuat pertandingan...</span>
-          </div>
-        ) : error ? (
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-            <p className="text-red-500 font-condensed mb-4">{error}</p>
-            <button
-              onClick={fetchGames}
-              className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors font-condensed"
-            >
-              Coba Lagi
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Column - Match List */}
-            <div className="lg:col-span-5">
-              {/* Stats Header */}
-              <div className="bg-gradient-to-r from-cyan-600 to-cyan-500 rounded-xl p-4 mb-4 text-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <span className="text-2xl">🏐</span>
+      <main className="pb-20 lg:pb-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Desktop Layout */}
+          <div className="hidden lg:block px-4 py-4">
+            <div className="grid grid-cols-12 gap-4">
+              {/* Left Column - Game List */}
+              <div className="col-span-5">
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  {/* Volleyball Header */}
+                  <div className="bg-gradient-to-r from-cyan-600 to-cyan-500 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <span className="text-2xl">🏐</span>
+                        </div>
+                        <div>
+                          <h1 className="text-white font-bold text-lg font-condensed">Volleyball</h1>
+                          <p className="text-cyan-100 text-xs font-condensed">
+                            CEV Champions • SuperLega • Liga Domestik
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-bold text-lg font-condensed">{games.length}</p>
+                        <p className="text-cyan-100 text-xs font-condensed">Pertandingan</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="font-bold text-lg font-condensed">Volleyball</h1>
-                    <p className="text-cyan-100 text-sm font-condensed">
-                      CEV Champions • SuperLega • Liga Domestik
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
-                  <span className="text-sm font-condensed">{games.length} Pertandingan</span>
-                  <div className="flex items-center gap-3 text-sm">
-                    {stats.live > 0 && (
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
-                        {stats.live} Live
-                      </span>
+
+                  {/* Game List */}
+                  <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                    {isLoadingGames ? (
+                      <div className="flex items-center justify-center py-12">
+                        <OrbitLoader color="#06B6D4" colorAlt="#0891B2" />
+                      </div>
+                    ) : (
+                      <VolleyballMatchList
+                        games={filteredGames}
+                        grouped={filteredGrouped}
+                        onGameClick={handleGameClick}
+                        selectedGame={selectedGame}
+                      />
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Match List */}
-              <VolleyballMatchList
-                games={filteredData.games}
-                grouped={filteredData.grouped}
-                favorites={favorites}
-                onToggleFavorite={handleToggleFavorite}
-                onGameClick={handleGameClick}
-              />
-            </div>
-
-            {/* Middle Column - Preview (Desktop) */}
-            <div className="hidden lg:block lg:col-span-4">
-              <VolleyballMatchPreview
-                games={games}
-                onGameClick={handleGameClick}
-              />
-            </div>
-
-            {/* Right Column - Ads Placeholder */}
-            <div className="hidden lg:block lg:col-span-3">
-              <div className="bg-white rounded-xl shadow-sm p-4 sticky top-4">
-                <div className="bg-gray-100 rounded-lg h-[250px] flex items-center justify-center">
-                  <span className="text-gray-400 text-sm font-condensed">Iklan</span>
-                </div>
+              {/* Center Column - Game Preview */}
+              <div className="col-span-4">
+                <VolleyballMatchPreview
+                  games={filteredGames}
+                  game={selectedGame}
+                  user={user}
+                  onGameClick={handleGameClick}
+                />
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-4 mt-4">
-                <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white text-center">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-2xl">🏐</span>
+              {/* Right Column - Ads */}
+              <div className="col-span-3 space-y-4">
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="bg-gray-100 px-3 py-1 text-xs text-gray-500 font-condensed">Iklan</div>
+                  <div className="aspect-[300/250] bg-gradient-to-br from-cyan-500 to-cyan-700 flex items-center justify-center">
+                    <div className="text-center text-white p-4">
+                      <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <span className="text-3xl">🏐</span>
+                      </div>
+                      <p className="text-xl font-bold font-condensed mb-1">Volleyball Live</p>
+                      <p className="text-sm font-condensed">Nonton CEV & SuperLega!</p>
+                      <button className="mt-3 px-4 py-2 bg-white text-cyan-600 rounded-lg text-sm font-bold font-condensed hover:bg-cyan-50 transition-colors">
+                        STREAMING
+                      </button>
+                    </div>
                   </div>
-                  <p className="font-bold font-condensed">Volleyball Live</p>
-                  <p className="text-sm text-cyan-100 font-condensed">Nonton CEV & SuperLega!</p>
-                  <button className="mt-3 px-4 py-2 bg-white text-cyan-600 rounded-lg text-sm font-bold font-condensed hover:bg-cyan-50 transition-colors">
-                    STREAMING
-                  </button>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="bg-gray-100 px-3 py-1 text-xs text-gray-500 font-condensed">Iklan</div>
+                  <div className="aspect-[300/250] bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center">
+                    <div className="text-center text-white p-4">
+                      <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <span className="text-3xl">🏐</span>
+                      </div>
+                      <p className="text-xl font-bold font-condensed mb-1">Volleyball Season</p>
+                      <p className="text-sm font-condensed">Jangan lewatkan!</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Mobile Layout */}
+          <div className="lg:hidden">
+            {/* Game List */}
+            <div className="p-3">
+              {isLoadingGames ? (
+                <div className="flex items-center justify-center py-12">
+                  <OrbitLoader color="#06B6D4" colorAlt="#0891B2" />
+                </div>
+              ) : (
+                <VolleyballMatchList
+                  games={filteredGames}
+                  grouped={filteredGrouped}
+                  onGameClick={handleGameClick}
+                  selectedGame={selectedGame}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Footer */}
       <SofaFooter />
+
+      {/* Modals */}
+      <UserProfileModal
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+        user={user}
+      />
+
+      <LoginRequiredModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={() => {
+          setShowLoginModal(false);
+          router.push('/auth');
+        }}
+      />
     </div>
   );
 }

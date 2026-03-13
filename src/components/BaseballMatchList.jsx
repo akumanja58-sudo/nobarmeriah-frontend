@@ -8,12 +8,12 @@ import { ChevronDown, ChevronUp, Star, Trophy, Award, Circle } from 'lucide-reac
 // BASEBALL MATCH LIST COMPONENT
 // ============================================================
 
-export default function BaseballMatchList({ 
-    games = [], 
-    grouped = [], 
+export default function BaseballMatchList({
+    games = [],
+    grouped = [],
     onGameClick,
     favorites = [],
-    onToggleFavorite 
+    onToggleFavorite
 }) {
     const router = useRouter();
     const [collapsedLeagues, setCollapsedLeagues] = useState({});
@@ -31,17 +31,14 @@ export default function BaseballMatchList({
 
     // Handle game click
     const handleGameClick = (game) => {
-        if (onGameClick) {
-            onGameClick(game);
-        } else {
-            router.push(`/baseball/game/${game.id}`);
-        }
+        onGameClick?.(game);
+        router.push(`/baseball/game/${game.id}`);
     };
 
     // Get league icon based on tier
     const getLeagueIcon = (tier, leagueName) => {
         const name = leagueName?.toLowerCase() || '';
-        
+
         if (name.includes('mlb') || name.includes('major league')) {
             return <Trophy className="w-5 h-5 text-red-500" />;
         }
@@ -57,7 +54,7 @@ export default function BaseballMatchList({
     // Format inning scores display
     const formatInningScores = (innings) => {
         if (!innings) return null;
-        
+
         const inningScores = [];
         for (let i = 1; i <= 9; i++) {
             const homeInn = innings.home?.[`inn${i}`];
@@ -96,9 +93,9 @@ export default function BaseballMatchList({
                     >
                         <div className="flex items-center gap-3">
                             {league.league_logo ? (
-                                <img 
-                                    src={league.league_logo} 
-                                    alt="" 
+                                <img
+                                    src={league.league_logo}
+                                    alt=""
                                     className="w-6 h-6 object-contain"
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                 />
@@ -124,9 +121,9 @@ export default function BaseballMatchList({
                         <div className="divide-y divide-gray-100">
                             {league.games.map((game) => {
                                 const inningScores = formatInningScores(game.innings);
-                                
+
                                 return (
-                                    <div 
+                                    <div
                                         key={game.id}
                                         className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
                                         onClick={() => handleGameClick(game)}
@@ -158,9 +155,9 @@ export default function BaseballMatchList({
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     {game.homeTeam?.logo ? (
-                                                        <img 
-                                                            src={game.homeTeam.logo} 
-                                                            alt="" 
+                                                        <img
+                                                            src={game.homeTeam.logo}
+                                                            alt=""
                                                             className="w-5 h-5 object-contain flex-shrink-0"
                                                             onError={(e) => { e.target.style.display = 'none'; }}
                                                         />
@@ -169,19 +166,17 @@ export default function BaseballMatchList({
                                                             {game.homeTeam?.name?.[0] || 'H'}
                                                         </div>
                                                     )}
-                                                    <span className={`text-sm font-condensed truncate ${
-                                                        game.isFinished && game.homeScore > game.awayScore
+                                                    <span className={`text-sm font-condensed truncate ${game.isFinished && game.homeScore > game.awayScore
                                                             ? 'font-semibold text-gray-900'
                                                             : 'text-gray-700'
-                                                    }`}>
+                                                        }`}>
                                                         {game.homeTeam?.name || 'Home'}
                                                     </span>
                                                 </div>
-                                                <span className={`text-sm font-bold font-condensed ml-2 ${
-                                                    game.isFinished && game.homeScore > game.awayScore
+                                                <span className={`text-sm font-bold font-condensed ml-2 ${game.isFinished && game.homeScore > game.awayScore
                                                         ? 'text-red-600'
                                                         : 'text-gray-900'
-                                                }`}>
+                                                    }`}>
                                                     {game.isLive || game.isFinished ? game.homeScore : '-'}
                                                 </span>
                                             </div>
@@ -190,9 +185,9 @@ export default function BaseballMatchList({
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     {game.awayTeam?.logo ? (
-                                                        <img 
-                                                            src={game.awayTeam.logo} 
-                                                            alt="" 
+                                                        <img
+                                                            src={game.awayTeam.logo}
+                                                            alt=""
                                                             className="w-5 h-5 object-contain flex-shrink-0"
                                                             onError={(e) => { e.target.style.display = 'none'; }}
                                                         />
@@ -201,19 +196,17 @@ export default function BaseballMatchList({
                                                             {game.awayTeam?.name?.[0] || 'A'}
                                                         </div>
                                                     )}
-                                                    <span className={`text-sm font-condensed truncate ${
-                                                        game.isFinished && game.awayScore > game.homeScore
+                                                    <span className={`text-sm font-condensed truncate ${game.isFinished && game.awayScore > game.homeScore
                                                             ? 'font-semibold text-gray-900'
                                                             : 'text-gray-700'
-                                                    }`}>
+                                                        }`}>
                                                         {game.awayTeam?.name || 'Away'}
                                                     </span>
                                                 </div>
-                                                <span className={`text-sm font-bold font-condensed ml-2 ${
-                                                    game.isFinished && game.awayScore > game.homeScore
+                                                <span className={`text-sm font-bold font-condensed ml-2 ${game.isFinished && game.awayScore > game.homeScore
                                                         ? 'text-red-600'
                                                         : 'text-gray-900'
-                                                }`}>
+                                                    }`}>
                                                     {game.isLive || game.isFinished ? game.awayScore : '-'}
                                                 </span>
                                             </div>
@@ -224,18 +217,16 @@ export default function BaseballMatchList({
                                                     <span className="text-[10px] text-gray-400 font-condensed flex-shrink-0">INN:</span>
                                                     <div className="flex gap-0.5">
                                                         {inningScores.slice(0, 9).map((inn) => (
-                                                            <div 
-                                                                key={inn.num} 
+                                                            <div
+                                                                key={inn.num}
                                                                 className="text-center bg-gray-50 rounded px-1 py-0.5 min-w-[20px]"
                                                             >
-                                                                <span className={`text-[9px] font-bold block ${
-                                                                    inn.home > inn.away ? 'text-red-600' : 'text-gray-500'
-                                                                }`}>
+                                                                <span className={`text-[9px] font-bold block ${inn.home > inn.away ? 'text-red-600' : 'text-gray-500'
+                                                                    }`}>
                                                                     {inn.home ?? '-'}
                                                                 </span>
-                                                                <span className={`text-[9px] font-bold block ${
-                                                                    inn.away > inn.home ? 'text-red-600' : 'text-gray-500'
-                                                                }`}>
+                                                                <span className={`text-[9px] font-bold block ${inn.away > inn.home ? 'text-red-600' : 'text-gray-500'
+                                                                    }`}>
                                                                     {inn.away ?? '-'}
                                                                 </span>
                                                             </div>
@@ -253,12 +244,11 @@ export default function BaseballMatchList({
                                             }}
                                             className="ml-3 p-1.5 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
                                         >
-                                            <Star 
-                                                className={`w-4 h-4 ${
-                                                    isFavorite(game.id) 
-                                                        ? 'fill-yellow-400 text-yellow-400' 
+                                            <Star
+                                                className={`w-4 h-4 ${isFavorite(game.id)
+                                                        ? 'fill-yellow-400 text-yellow-400'
                                                         : 'text-gray-300'
-                                                }`} 
+                                                    }`}
                                             />
                                         </button>
                                     </div>
