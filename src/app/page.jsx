@@ -13,6 +13,7 @@ import ChallengePage from '@/components/ChallengePage';
 import UserProfileModal from '@/components/UserProfileModal';
 import RewardHistoryModal from '@/components/RewardHistoryModal';
 import LoginRequiredModal from '@/components/LoginRequiredModal';
+import FinishedMatchList from '@/components/FinishedMatchList';
 import OrbitLoader from '@/components/OrbitLoader';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
@@ -299,13 +300,17 @@ export default function HomePage() {
             <div className="flex items-center justify-center py-20">
               <OrbitLoader size={48} text="Memuat pertandingan..." />
             </div>
+          ) : activeFilter === 'Selesai' ? (
+            <FinishedMatchList
+              onMatchClick={handleMatchClick}
+              selectedMatch={selectedMatch}
+            />
           ) : filteredMatches.length === 0 ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <span className="text-4xl mb-3 block">⚽</span>
                 <p className="text-gray-500 font-condensed">
                   {activeFilter === 'Live' && 'Tidak ada pertandingan live saat ini'}
-                  {activeFilter === 'Selesai' && 'Tidak ada pertandingan selesai hari ini'}
                   {activeFilter === 'Semua' && 'Tidak ada pertandingan'}
                 </p>
               </div>
@@ -347,12 +352,16 @@ export default function HomePage() {
                         </button>
                       </div>
                     )}
-                    {filteredMatches.length === 0 ? (
+                    {activeFilter === 'Selesai' ? (
+                      <FinishedMatchList
+                        onMatchClick={handleMatchClick}
+                        selectedMatch={selectedMatch}
+                      />
+                    ) : filteredMatches.length === 0 ? (
                       <div className="bg-white rounded-xl shadow-sm p-8 text-center">
                         <span className="text-4xl mb-3 block">⚽</span>
                         <p className="text-gray-500 font-condensed">
                           {activeFilter === 'Live' && 'Tidak ada pertandingan live saat ini'}
-                          {activeFilter === 'Selesai' && 'Tidak ada pertandingan selesai hari ini'}
                           {activeFilter === 'Semua' && 'Tidak ada pertandingan'}
                         </p>
                       </div>
