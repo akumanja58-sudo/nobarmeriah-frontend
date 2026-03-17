@@ -23,6 +23,7 @@ import MatchVote from '@/components/match-detail/MatchVote';
 import MatchPreStandings from '@/components/match-detail/MatchPreStandings';
 import MatchPrediction from '@/components/match-detail/MatchPrediction';
 import MatchTeamStats from '@/components/match-detail/MatchTeamStats';
+import MatchHighlights from '@/components/match-detail/MatchHighlights';
 import OrbitLoader from '@/components/OrbitLoader';
 
 import { RefreshCw, Loader2 } from 'lucide-react';
@@ -152,10 +153,16 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'rincian':
-                // Tab Rincian - isinya sidebar content (Mobile Only)
-                // Di Desktop, tab ini disembunyikan karena sidebar kiri sudah ada
                 return (
                     <div className="space-y-4">
+                        {/* 0. HIGHLIGHTS - Paling atas, hanya muncul kalau match selesai */}
+                        {isFinished && (
+                            <MatchHighlights
+                                match={match}
+                                isFinished={isFinished}
+                            />
+                        )}
+
                         {/* 1. Odds dari API-Football */}
                         <MatchOdds match={match} />
 
@@ -375,14 +382,22 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                             {/* 1. Odds dari API-Football */}
                             <MatchOdds match={match} />
 
-                            {/* 2. Prediksi Voting */}
+                            {/* 2. HIGHLIGHTS - Di bawah Odds, hanya muncul kalau match selesai */}
+                            {isFinished && (
+                                <MatchHighlights
+                                    match={match}
+                                    isFinished={isFinished}
+                                />
+                            )}
+
+                            {/* 3. Prediksi Voting */}
                             <MatchVote
                                 match={match}
                                 user={user}
                                 isFinished={isFinished}
                             />
 
-                            {/* 3. Match Events - HANYA muncul kalau LIVE atau FINISHED */}
+                            {/* 4. Match Events - HANYA muncul kalau LIVE atau FINISHED */}
                             {(isLive || isFinished) && events && events.length > 0 && (
                                 <MatchEvents
                                     events={events}
@@ -395,7 +410,7 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                                 />
                             )}
 
-                            {/* 4. Klasemen Pra-Pertandingan */}
+                            {/* 5. Klasemen Pra-Pertandingan */}
                             <MatchPreStandings
                                 leagueId={match?.league_id}
                                 homeTeamId={match?.home_team_id}
@@ -407,7 +422,7 @@ export default function MatchDetailClient({ matchSlug, matchId }) {
                                 season={match?.league_season || match?.season || (new Date().getMonth() + 1 < 8 ? new Date().getFullYear() - 1 : new Date().getFullYear())}
                             />
 
-                            {/* 5. Match Info (Tanggal, Venue, Wasit, dll) */}
+                            {/* 6. Match Info (Tanggal, Venue, Wasit, dll) */}
                             <MatchInfo match={match} />
                         </div>
 
