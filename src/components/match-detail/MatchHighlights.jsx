@@ -82,11 +82,6 @@ export default function MatchHighlights({ match, isFinished }) {
                         <Youtube className="w-5 h-5 text-red-600" />
                         <h3 className="font-semibold text-gray-800 font-condensed">Highlight</h3>
                     </div>
-                    {highlights.length > 0 && (
-                        <span className="text-xs text-gray-400 font-condensed">
-                            {highlights.length} video
-                        </span>
-                    )}
                 </div>
 
                 {/* Content */}
@@ -108,7 +103,7 @@ export default function MatchHighlights({ match, isFinished }) {
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {/* Main highlight (first video) */}
+                            {/* Single highlight video */}
                             {highlights[0] && (
                                 <div 
                                     className="relative cursor-pointer group"
@@ -145,45 +140,16 @@ export default function MatchHighlights({ match, isFinished }) {
                                 </div>
                             )}
 
-                            {/* Other highlights (thumbnails) */}
-                            {highlights.length > 1 && (
-                                <div className="grid grid-cols-2 gap-2 mt-3">
-                                    {highlights.slice(1, 5).map((video) => (
-                                        <div
-                                            key={video.videoId}
-                                            className="relative cursor-pointer group"
-                                            onClick={() => handleVideoClick(video)}
-                                        >
-                                            <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
-                                                <img
-                                                    src={video.thumbnail}
-                                                    alt={video.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                />
-                                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition-colors">
-                                                    <Play className="w-8 h-8 text-white opacity-80" />
-                                                </div>
-                                            </div>
-                                            <p className="mt-1 text-xs text-gray-600 font-condensed line-clamp-1">
-                                                {video.title}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
                             {/* See more on YouTube */}
-                            {highlights.length > 0 && (
-                                <a
-                                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${match.home_team_name} vs ${match.away_team_name} highlights`)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 mt-3 py-2 text-sm text-red-600 hover:text-red-700 font-condensed transition-colors"
-                                >
-                                    <span>Lihat lebih banyak di YouTube</span>
-                                    <ExternalLink className="w-4 h-4" />
-                                </a>
-                            )}
+                            <a
+                                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${match.home_team_name || match.home_team} vs ${match.away_team_name || match.away_team} highlights`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 py-2 text-sm text-red-600 hover:text-red-700 font-condensed transition-colors"
+                            >
+                                <span>Lihat lebih banyak di YouTube</span>
+                                <ExternalLink className="w-4 h-4" />
+                            </a>
                         </div>
                     )}
                 </div>
